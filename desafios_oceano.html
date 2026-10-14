@@ -1,0 +1,4452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAIA - Desafios Oceano</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap');
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    user-select: none;
+}
+
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* TELA DE INÍCIO */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 50;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 1s ease;
+    pointer-events: auto;
+}
+#start-btn {
+    padding: 20px 40px;
+    font-size: 1.5rem;
+    font-family: 'Orbitron', sans-serif;
+    color: #00e5ff;
+    background: transparent;
+    border: 2px solid #00e5ff;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+#start-btn:hover {
+    background: rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 40px rgba(0, 229, 255, 0.8);
+}
+
+/* LAYOUT DO LABORATORIO CLIMÁTICO */
+#lab-hud {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 5;
+    display: none;
+    opacity: 0;
+    transition: opacity 2s ease;
+    pointer-events: none;
+    padding: 20px;
+}
+#lab-hud.active {
+    display: grid;
+    grid-template-columns: 0.7fr 1.5fr; 
+    grid-template-rows: minmax(0, 1fr) 140px; 
+    gap: 20px;
+    opacity: 1;
+}
+
+/* PAINEL DO SIMULADOR (ESQUERDA) */
+.graph-panel {
+    grid-column: 1;
+    grid-row: 1;
+    background: rgba(0, 15, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    position: relative;
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.1);
+    overflow: hidden; 
+}
+
+/* PAINEL DO GRÁFICO (DIREITA) */
+.whiteboard-panel {
+    grid-column: 2;
+    grid-row: 1;
+    background: rgba(0, 15, 30, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.1);
+    overflow: hidden; 
+}
+
+.panel-header {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: #00e5ff;
+    text-align: center;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+    padding-bottom: 10px;
+    width: 100%;
+    flex-shrink: 0;
+}
+.formula {
+    color: #FFFFFF;
+    font-family: "Times New Roman", serif;
+    font-size: 1.2em;
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* CAIXA DE DIÁLOGO DA GAIA NO LAB */
+.lab-dialogue-panel {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    background: rgba(0, 20, 40, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.5);
+    border-radius: 12px;
+    padding: 15px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: auto;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.15);
+}
+.header {
+    display: flex; justify-content: space-between; align-items: center;
+}
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    color: #00e5ff;
+    letter-spacing: 3px;
+}
+.audio-waves { display: flex; align-items: center; gap: 4px; height: 25px; }
+.bar {
+    width: 4px; height: 5px; background-color: #00e5ff; border-radius: 2px;
+    animation: wave 1s infinite ease-in-out;
+}
+.bar:nth-child(1) { animation-delay: 0.0s; }
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave {0%, 100% { height: 5px; } 50% { height: 22px; }}
+
+.action-btn {
+    padding: 10px 22px; background: rgba(0, 229, 255, 0.12); 
+    border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Orbitron', sans-serif; 
+    cursor: pointer; transition: 0.3s; display: none;
+    text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
+    border-radius: 6px;
+}
+.action-btn:hover { background: #00e5ff; color: #000; box-shadow: 0 0 15px rgba(0, 229, 255, 0.6); }
+
+/* --- ESTILOS DO SIMULADOR 3D / GRÁFICOS --- */
+.simulator-canvas-container {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+    flex-shrink: 1; 
+    min-height: 0; 
+    background: rgba(2, 6, 23, 0.8);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(2, 6, 23, 0.4);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+    flex-shrink: 0;
+}
+.slider-group {
+    display: flex; flex-direction: column; gap: 6px;
+}
+.slider-header {
+    display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; font-weight: 500;
+}
+.slider-header span.highlight {
+    color: #38bdf8; font-weight: bold;
+}
+input[type=range] {
+    -webkit-appearance: none; width: 100%; background: rgba(15, 23, 42, 0.9); height: 6px;
+    border-radius: 3px; outline: none; border: 1px solid rgba(14, 165, 233, 0.2);
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: #38bdf8; border: 2px solid #ffffff; cursor: pointer;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+}
+input[type=range]:disabled { opacity: 0.5; cursor: not-allowed; }
+input[type=range]:disabled::-webkit-slider-thumb { background: #64748b; box-shadow: none; cursor: not-allowed; }
+
+/* --- QUADRO DE RESOLUÇÃO --- */
+#math-board {
+    position: absolute;
+    top: 5%; left: 5%;
+    width: 90%; height: 90%;
+    background: rgba(0, 10, 20, 0.96);
+    border: 2px solid #00e5ff;
+    border-radius: 15px;
+    box-shadow: 0 0 50px rgba(0, 229, 255, 0.4);
+    z-index: 15;
+    display: none;
+    flex-direction: column;
+    padding: 25px 30px;
+    box-sizing: border-box; 
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+    color: #ffffff;
+}
+
+#math-page-1::-webkit-scrollbar {
+    width: 8px;
+}
+#math-page-1::-webkit-scrollbar-thumb {
+    background: rgba(0, 229, 255, 0.4);
+    border-radius: 4px;
+}
+
+/* SISTEMA DE QUIZ IMPORTADO DOS DESAFIOS ATMOSFERA (ADICIONADO PARA O DESAFIO 3) */
+#quiz-modal {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 20;
+    background: rgba(0, 5, 12, 0.85);
+    backdrop-filter: blur(15px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+#quiz-modal.active { display: flex; opacity: 1; }
+.quiz-card {
+    background: rgba(0, 20, 45, 0.9);
+    border: 1px solid rgba(0, 229, 255, 0.6);
+    border-radius: 16px;
+    width: 90%; max-width: 800px;
+    padding: 35px;
+    box-shadow: 0 0 50px rgba(0, 229, 255, 0.25);
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+}
+.quiz-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.5rem;
+    color: #00e5ff;
+    margin-top: 0;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: normal;
+}
+.quiz-question { font-size: 1.2rem; color: #fff; margin-bottom: 25px; line-height: 1.5; font-family: 'Rajdhani', sans-serif;}
+.quiz-options { display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
+.option-btn {
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 8px;
+    padding: 14px 20px;
+    color: #e0f7fc;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.option-btn:hover {
+    background: rgba(0, 229, 255, 0.25);
+    border-color: #00e5ff;
+    transform: translateX(10px);
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+}
+.option-btn.wrong {
+    border-color: #ff3333;
+    background: rgba(255, 50, 50, 0.2);
+    color: #ff9999;
+    pointer-events: none;
+}
+.option-btn.correct {
+    border-color: #00ff66;
+    background: rgba(0, 255, 102, 0.2);
+    color: #00ff66;
+    pointer-events: none;
+}
+#btn-voltar-desafio {
+    position: absolute;
+    bottom: 30px;
+    right: 40px;
+    padding: 10px 25px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid #00e5ff;
+    color: #00e5ff;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 1rem;
+    z-index: 30;
+    border-radius: 6px;
+}
+#btn-voltar-desafio:hover {
+    background: #00e5ff;
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
+}
+
+/* --- DESAFIO FINAL DA MISSÃO OCEANO --- */
+#desafio-final-modal {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 22;
+    background: rgba(0, 5, 12, 0.93);
+    backdrop-filter: blur(15px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    padding: 14px;
+}
+#desafio-final-modal.ativo { display: flex; }
+
+/* Cartão do desafio: largura maior e altura limitada, sem rolagem de página */
+#desafio-final-modal .quiz-card {
+    width: 96%;
+    max-width: 1280px;
+    max-height: 96vh;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#desafio-final-modal .quiz-title {
+    font-size: 1.25rem;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+/* Corpo em duas colunas: enunciado+alternativas | lousa */
+#df-corpo { flex: 1; min-height: 0; }
+#df-corpo.duas-colunas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px;
+}
+#df-col-esq {
+    min-width: 0;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+#df-col-dir {
+    display: none;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* ---- LOUSA DE CÁLCULOS do desafio (mesma identidade da missão oceano) ---- */
+.df-wb-panel {
+    background: rgba(0, 15, 30, 0.65);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.1);
+}
+.df-wb-header {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.05rem;
+    color: #00e5ff;
+    text-align: center;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+    padding-bottom: 8px;
+    flex-shrink: 0;
+}
+.df-wb-wrapper {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin-top: 12px;
+    background: rgba(0, 20, 35, 0.7);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+.df-wb-wrapper:focus-within {
+    border-color: #00ff66;
+    box-shadow: inset 0 0 15px rgba(0, 255, 102, 0.1);
+}
+.df-wb-wrapper textarea {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: #00ff66;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 1.02rem;
+    padding: 14px;
+    resize: none;
+    outline: none;
+}
+#df-wb-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    touch-action: none;
+}
+/* resolução apresentada na lousa depois do acerto */
+#df-wb-resultado {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: none;
+    overflow-y: auto;
+    padding: 14px;
+    background: rgba(0, 20, 35, 0.92);
+}
+#df-wb-resultado .df-retorno { margin-top: 0; }
+#df-wb-resultado .df-anim { margin-top: 14px; }
+
+/* Sequência animada da resolução: mesmas regras do quadro negro —
+   linhas de texto em branco e fórmulas em verde, centralizadas. */
+.df-anim-linha {
+    margin-bottom: 10px;
+    line-height: 1.5;
+    font-family: 'Times New Roman', serif;
+    font-size: 1.12rem;
+    color: #eaf6ff;
+}
+.df-anim-linha.formula {
+    color: #00ff66;
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+}
+.df-anim-linha.resposta {
+    color: #b6ffd0;
+    text-align: center;
+    font-size: 1.16rem;
+}
+
+/* botões no canto inferior, logo abaixo da lousa */
+.df-wb-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    flex-shrink: 0;
+}
+.df-wb-btn {
+    display: block;            /* .action-btn do projeto vem com display:none */
+    margin-top: 0 !important;
+    padding: 9px 18px;
+    font-size: .82rem;
+    letter-spacing: 1px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid #00e5ff;
+    color: #00e5ff;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: .3s;
+}
+.df-wb-btn.apagar {
+    border-color: #ff5555;
+    color: #ff5555;
+}
+.df-wb-btn.apagar:hover { background: #ff5555; color: #000; }
+.df-wb-btn:disabled { opacity: .35; cursor: default; }
+
+.df-enunciado {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.12rem;
+    color: #fff;
+    line-height: 1.55;
+    margin-bottom: 14px;
+}
+.df-formula {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.35rem;
+    color: #00ff66;
+    text-align: center;
+    margin: 10px 0 16px;
+}
+.df-tabela {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    font-family: 'Times New Roman', serif;
+    font-size: 1rem;
+    color: #fff;
+}
+.df-tabela th {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: .92rem;
+    letter-spacing: 1px;
+    color: #7de9ff;
+    border-bottom: 1px solid rgba(0, 229, 255, .35);
+    padding: 5px 8px;
+}
+.df-tabela td { padding: 5px 8px; text-align: center; }
+.df-tabela tr.perigo td { color: #ff6b6b; background: rgba(255, 60, 60, .1); }
+.df-tabela tr.limite td { color: #ffeb3b; background: rgba(255, 235, 59, .08); }
+
+/* tabela de escolha do 4º desafio: cada linha é clicável */
+.df-tabela tr.escolhavel { cursor: pointer; transition: background .2s ease; }
+.df-tabela tr.escolhavel:hover td { background: rgba(0, 229, 255, .16); color: #fff; }
+.df-tabela tr.escolhavel td:first-child { position: relative; padding-left: 26px; }
+.df-tabela tr.escolhavel td:first-child::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 9px;
+    height: 9px;
+    border: 1px solid rgba(0, 229, 255, .6);
+    border-radius: 50%;
+}
+.df-tabela tr.escolhavel.selecionado td { background: rgba(0, 255, 102, .16); color: #b6ffd0; }
+.df-tabela tr.escolhavel.selecionado td:first-child::before {
+    background: #00ff66;
+    border-color: #00ff66;
+    box-shadow: 0 0 8px #00ff66;
+}
+
+/* dica: linha de apoio logo abaixo do enunciado (sem caixa) */
+.df-dica {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.02rem;
+    color: #9fd8ff;
+    margin: -6px 0 12px;
+    padding: 0 2px;
+}
+.df-opcao {
+    display: block; width: 100%; text-align: left;
+    background: rgba(0, 229, 255, .05);
+    border: 1px solid rgba(0, 229, 255, .3);
+    border-radius: 8px;
+    padding: 12px 18px;
+    color: #e0f7fc;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.05rem;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all .25s ease;
+}
+.df-opcao:hover { background: rgba(0, 229, 255, .22); border-color: #00e5ff; transform: translateX(8px); }
+.df-retorno {
+    margin-top: 14px; padding: 14px 16px;
+    border-radius: 10px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.02rem;
+    line-height: 1.6;
+}
+.df-retorno.certo { background: rgba(0, 255, 102, .12); border: 1px solid rgba(0, 255, 102, .5); color: #b6ffd0; }
+.df-retorno.errado { background: rgba(255, 60, 60, .12); border: 1px solid rgba(255, 90, 90, .5); color: #ffc4c4; }
+.df-retorno.final {
+    background: rgba(124, 77, 255, .14);
+    border: 1px solid rgba(179, 136, 255, .6);
+    color: #e6dcff;
+}
+.df-retorno .df-num {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.25rem;
+    color: #ffeb3b;
+}
+/* --- Navegação entre os passos do desafio final --- */
+.df-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 229, 255, .2);
+}
+.df-nav-btn {
+    background: rgba(0, 229, 255, .1);
+    border: 1px solid rgba(0, 229, 255, .45);
+    color: #7de9ff;
+    font-family: 'Orbitron', sans-serif;
+    font-size: .8rem;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: .25s;
+}
+.df-nav-btn:hover:not(:disabled) { background: #00e5ff; color: #000; box-shadow: 0 0 15px rgba(0, 229, 255, .5); }
+.df-nav-btn:disabled { opacity: .25; cursor: default; }
+
+/* ---- quadro "dados atuais": ampliado e centralizado ---- */
+#df-dados {
+    width: 100%;
+    max-width: 660px;
+    margin: 0 auto 26px;
+    background: rgba(0, 229, 255, .06);
+    border: 1px solid rgba(0, 229, 255, .28);
+    border-radius: 14px;
+    padding: 24px 30px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 229, 255, .10);
+}
+.df-dados-titulo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.05rem;
+    letter-spacing: 4px;
+    color: #7de9ff;
+    margin-bottom: 16px;
+}
+.df-dados-linha {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.28rem;
+    color: #dff2fb;
+    line-height: 1.95;
+}
+.df-dados-linha strong { color: #ffeb3b; }
+.df-dados-linha b { color: #7de9ff; }
+
+/* --- ANIMAÇÃO DA SUBSTITUIÇÃO C_oce ⟶ x (mesma paleta da animação do quadro negro) --- */
+@keyframes sub-seta-anim { 0%,100% { transform: translateY(0); opacity: .7 } 50% { transform: translateY(6px); opacity: 1 } }
+@keyframes sub-pop { 0% { transform: scale(.88); opacity: 0 } 62% { transform: scale(1.04); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
+#sub-seta { animation: sub-seta-anim 1.6s ease-in-out infinite; }
+#formula-nova.sub-pop { animation: sub-pop .5s cubic-bezier(.2,.9,.25,1.2) both; }
+@media (prefers-reduced-motion: reduce) { #sub-seta { animation: none } }
+
+/* Centraliza o cartão da animação Δt sem cortar o topo quando ele é maior que o painel */
+#delta-container > div { margin: auto 0; flex-shrink: 0; }
+
+/* Trechos da equação que crescem/encolhem no painel da equação */
+.eq-seg {
+    display: inline-block;
+    max-width: 400px;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width .5s cubic-bezier(.3,.9,.3,1), opacity .38s ease;
+}
+
+/* Durante a passagem discreto -> contínuo o painel do oceano fica ocioso:
+   o gráfico ocupa a largura toda para ficar maior e mais legível. */
+#lab-hud.foco-grafico.active { grid-template-columns: 1fr; }
+#lab-hud.foco-grafico .graph-panel { display: none; }
+#lab-hud.foco-grafico .whiteboard-panel { grid-column: 1; }
+
+/* ======================================================================
+   HUD DE VOO + PAINEL HOLOGRÁFICO
+   Mesma tela de abertura da missão oceano (missao_oceano.html): Terra ao
+   fundo (Three.js em #canvas-container), mira, telemetria e o painel
+   de diálogo da GAIA. Usado no encerramento, antes do desafio final.
+   ====================================================================== */
+#flight-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 20px solid rgba(0, 229, 255, 0.05);
+    display: none;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+}
+.nose-vignette {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, transparent 55%, rgba(0, 15, 30, 0.85) 95%);
+}
+.crosshair-flight {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+}
+.crosshair-flight::before, .crosshair-flight::after {
+    content: '';
+    position: absolute;
+    background: #00e5ff;
+    box-shadow: 0 0 8px #00e5ff;
+}
+.crosshair-flight::before { top: 39px; left: -20px; width: 120px; height: 2px; }
+.crosshair-flight::after { left: 39px; top: 10px; width: 2px; height: 20px; }
+.flight-path-vector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #00e5ff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #00e5ff;
+}
+.hud-panel {
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    background: rgba(0, 20, 40, 0.4);
+    padding: 12px 18px;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 4px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+.hud-left { top: 40px; left: 40px; }
+.hud-right { top: 40px; right: 40px; text-align: right; }
+.hud-top {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    letter-spacing: 4px;
+    font-weight: bold;
+    font-size: 16px;
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+}
+.rec-box {
+    color: #00ff66;
+    text-shadow: 0 0 8px #00ff66;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.dot {
+    width: 12px;
+    height: 12px;
+    background-color: #00ff66;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff66;
+    animation: blink 1s infinite;
+}
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+#ui-layer-encerramento {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 6;
+    display: none;
+    justify-content: flex-end;
+    align-items: center;
+    flex-direction: column;
+    pointer-events: none;
+    padding-bottom: 40px;
+}
+#ui-layer-encerramento.ativo { display: flex; }
+
+#hologram-panel {
+    background: rgba(0, 20, 40, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 0 35px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(0, 229, 255, 0.05);
+    width: 70%;
+    max-width: 800px;
+    padding: 25px 35px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 1.2s ease, transform 1.2s ease, border-color 0.5s;
+    pointer-events: auto;
+    position: relative;
+}
+#hologram-panel.active { opacity: 1; transform: scale(1); }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.5);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    color: #00e5ff;
+    letter-spacing: 3px;
+}
+.audio-waves { display: flex; align-items: center; gap: 4px; height: 25px; }
+.bar {
+    width: 4px; height: 5px; background-color: #00e5ff; border-radius: 2px;
+    animation: wave 1s infinite ease-in-out;
+}
+.bar:nth-child(1) { animation-delay: 0.0s; }
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave {0%, 100% { height: 5px; } 50% { height: 22px; } }
+
+#dialogue-text {
+    font-size: 1.3rem;
+    line-height: 1.6;
+    min-height: 120px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+/* botões alinhados à direita do painel que os contém */
+#hologram-panel #next-btn,
+#math-controls #math-continue-btn {
+    margin-left: auto;
+}
+</style>
+</head>
+<body>
+
+<!-- TELA DE INÍCIO -->
+<div id="start-screen">
+    <button id="start-btn">CONTINUAR NO LABORATÓRIO</button>
+</div>
+
+<!-- CANVAS THREE.JS BACKGROUND -->
+<div id="canvas-container"></div>
+
+<!-- ================= HUD DE VOO (encerramento da missão) =================
+     Mesmo layout da tela de abertura da missão oceano (missao_oceano.html):
+     Terra ao fundo, mira de voo, painéis de telemetria e painel holográfico
+     com as falas da GAIA. Usado apenas no encerramento, antes do
+     desafio final. -->
+<div id="flight-hud">
+    <div class="nose-vignette"></div>
+    <div class="hud-top">OCEAN RECON // LOW ALTITUDE SURVEY</div>
+    <div class="crosshair-flight"></div>
+    <div class="flight-path-vector"></div>
+    <div class="hud-panel hud-left">
+        <div class="rec-box"><div class="dot"></div> OCEAN CAM 01 - LIVE</div>
+        <div>AIRSPEED: 850 KTS</div>
+        <div>ALTITUDE: 12,000 FT</div>
+        <div>PITCH: -4.2°</div>
+        <div>ROLL: +1.0°</div>
+    </div>
+    <div class="hud-panel hud-right">
+        <div>SYS: AUTOPILOT / SURFACE STABILITY</div>
+        <div>HDG: 045° (NE)</div>
+        <div>LAT: 62°15'10" N</div>
+        <div>LON: 25°40'12" W</div>
+        <div id="target-display">SURFACE: ATLÂNTICO NORTE (SAUDÁVEL)</div>
+    </div>
+</div>
+
+<!-- CAMADA DE UI PARA O DIÁLOGO DE VOO DA GAIA -->
+<div id="ui-layer-encerramento">
+    <div id="hologram-panel">
+        <div class="header">
+            <div class="title">SISTEMA GAIA - MISSÃO OCEANO</div>
+            <div class="audio-waves" id="waves" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <div id="dialogue-text"></div>
+        <button id="next-btn" class="action-btn">Avançar &gt;&gt;</button>
+    </div>
+</div>
+
+<!-- LABORATÓRIO HUD -->
+<div id="lab-hud">
+    <!-- PAINEL ESQUERDO: SIMULADOR OCEANO / TABELAS -->
+    <div class="graph-panel">
+        <div id="simulator-hologram" style="display:flex; width: 100%; height: 100%; flex-direction: column;">
+            <div class="panel-header" id="panel-esq-header" style="margin-bottom: 10px;">Sistema Atmosfera e Oceano</div>
+            <div class="simulator-canvas-container" style="background: rgba(2, 6, 23, 0.8);">
+                <canvas id="canvas-oceano" style="width: 100%; height: 100%; display: block;"></canvas>
+                
+                <!-- CONTAINER DINÂMICO PARA A TABELA (FASE 2) -->
+                <div id="tabela-container" style="display: none; width: 100%; height: 100%; flex-direction: column; justify-content: flex-start; align-items: center; background: rgba(2, 6, 23, 0.9); padding: 15px; overflow-y: auto;">
+                    <table id="tabela-iteracao" style="width: 90%; border-collapse: collapse; text-align: center; font-size: 1.1rem; color: #fff; font-family: 'Times New Roman', serif;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #00e5ff; color: #00e5ff;">
+                                <th style="padding: 10px;">Iteração (n)</th>
+                                <th style="padding: 10px;">Concentração (x<sub>n</sub>)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Gerado pelo Javascript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="controls-container" id="container-controles"></div>
+        </div>
+    </div>
+
+    <!-- PAINEL DIREITO: GRÁFICO DINÂMICO E ANIMAÇÃO DA FÓRMULA -->
+    <div class="whiteboard-panel">
+        <div id="simulator-graph" style="display:flex; width: 100%; height: 100%; flex-direction: column;">
+            <div class="panel-header" id="panel-dir-header" style="margin-bottom: 10px;">
+              Análise Gráfica do Fluxo de CO₂:<br>
+              <span class="formula">
+                 F(C<sub>oce</sub>) = k(1 - C<sub>oce</sub>)
+              </span>
+            </div>
+            <div class="simulator-canvas-container" style="background: rgba(2, 6, 23, 0.8);">
+                <canvas id="canvas-grafico" style="width: 100%; height: 100%; display: block;"></canvas>
+                <div id="formula-container" style="display: none; width: 100%; height: 100%; flex-direction: column; justify-content: center; align-items: center; background: rgba(2, 6, 23, 0.95); padding: 18px; overflow: hidden;">
+                    <!-- Cartão padronizado com a animação do quadro negro:
+                         mesma paleta (branco #eaf6ff, amarelo #ffeb3b, ciano #00e5ff, violeta #b388ff),
+                         mesma tipografia (Times New Roman), mesmos quadros com borda arredondada. -->
+                    <div id="formula-card" style="width:100%; max-width:540px; background:rgba(0,15,30,.72); border:1px solid rgba(0,229,255,.4); border-radius:14px; padding:16px 14px 12px; box-shadow:0 0 28px rgba(0,229,255,.18); display:flex; flex-direction:column; align-items:center; opacity:0; transition:opacity .5s ease;">
+
+                        <!-- equação de partida -->
+                        <div style="padding:10px 22px; border:1.3px solid rgba(0,229,255,.5); border-radius:12px; background:rgba(0,229,255,.06);">
+                            <span style="font-family:'Times New Roman', serif; font-size:30px; font-weight:bold; color:#eaf6ff;">F(<span style="color:#ffeb3b;">C<sub style="font-size:18px;">oce</sub></span>) = k(1 − <span style="color:#ffeb3b;">C<sub style="font-size:18px;">oce</sub></span>)</span>
+                        </div>
+
+                        <!-- seta da substituição -->
+                        <div id="formula-arrows" style="opacity: 0; transition: opacity .6s ease; display:flex; flex-direction:column; align-items:center; gap:3px; margin:8px 0 8px;">
+                            <div id="sub-seta" style="width:0; height:0; border-left:9px solid transparent; border-right:9px solid transparent; border-top:15px solid #00e5ff;"></div>
+                            <div style="font-family:'Rajdhani', sans-serif; font-size:14px; font-weight:600; color:#9fd8ff;">C<sub>oce</sub> é reescrito como x</div>
+                        </div>
+
+                        <!-- equação resultante -->
+                        <div id="formula-nova" style="opacity: 0; transition: opacity .6s ease; padding:10px 22px; border:1.4px solid rgba(179,136,255,.65); border-radius:12px; background:rgba(124,77,255,.09);">
+                            <span style="font-family:'Times New Roman', serif; font-size:30px; font-weight:bold; color:#eaf6ff;">F(<span style="color:#ffeb3b;">x</span>) = k(1 − <span style="color:#ffeb3b;">x</span>)</span>
+                        </div>
+
+                        <!-- legenda -->
+                        <div id="formula-leg" style="opacity:0; transition:opacity .6s ease; display:flex; justify-content:center; gap:20px; flex-wrap:wrap; margin-top:11px; font-family:'Rajdhani', sans-serif; font-size:14px; font-weight:600; color:#dff2fb;">
+                            <span><span style="color:#b388ff;">C<sub>oce</sub></span> = concentração de CO<sub>2</sub> no oceano</span>
+                            <span><span style="color:#b388ff;">x</span> = C<sub>oce</sub>, notação simplificada</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- ANIMAÇÃO Δt (passagem do tempo discreto para o contínuo) -->
+                <div id="delta-container" style="display:none; width:100%; height:100%; flex-direction:column; align-items:center; background:rgba(2,6,23,.95); padding:14px; overflow:auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIÁLOGO -->
+    <div class="lab-dialogue-panel">
+        <div class="header" style="margin-bottom: 8px; padding-bottom: 5px;">
+            <div class="title" style="font-size: 1.1rem;">GAIA - MODELAGEM MATEMÁTICA DOS OCEANOS</div>
+            <div class="audio-waves" id="lab-waves" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <div id="lab-dialogue-text" style="font-size: 1.2rem; line-height: 1.5; flex-grow: 1;"></div>
+        <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+            <button id="challenge-trigger-btn" class="action-btn" style="margin-top: 0;">Avançar >></button>
+        </div>
+    </div>
+</div>
+
+<!-- QUADRO NEGRO -->
+<div id="math-board">
+    <h2 id="math-board-title" style="text-align: center; color: #fff; margin-top: 0; margin-bottom: 15px; font-family: 'Orbitron'; flex-shrink: 0; font-size: 1.5rem;">RESOLUÇÃO DO MODELO</h2>
+    
+    <div id="math-viewport" style="position: relative; flex: 1; width: 100%; overflow: hidden; border-radius: 10px; background: rgba(0, 5, 12, 0.6); border: 1px solid rgba(0, 229, 255, 0.2);">
+        <div id="math-page-1" style="width: 100%; height: 100%; overflow-y: auto; padding: 25px; scroll-behavior: smooth; font-size: 1.4rem;">
+            <div id="math-steps"></div>
+        </div>
+    </div>
+
+    <!-- CONTROLES DO QUADRO -->
+    <div id="math-controls" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 15px; flex-shrink: 0; width: 100%;">
+        <button id="math-download-btn" class="action-btn" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.8); background: rgba(255, 235, 59, .14); border-color: #ffeb3b; color: #ffeb3b; display: none;">BAIXAR O TEXTO EM PDF</button>
+        <button id="math-continue-btn" class="action-btn" style="box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);">VOLTAR AO LABORATÓRIO &gt;&gt;</button>
+    </div>
+</div>
+
+<!-- MODAL DESAFIO 3 -->
+<div id="quiz-modal">
+    <div class="quiz-card">
+        <h2 class="quiz-title">DESAFIO 3</h2>
+        <div class="quiz-question">
+            Com a concentração inicial de CO₂ fixa em 0,5 e alterando o valor do parâmetro K, podemos observar que com o avançar do tempo:
+        </div>
+        <div class="quiz-options">
+            <button class="option-btn" data-correct="false">Quanto menor o valor do parâmetro k mais rápido o oceano absorve o CO₂;</button>
+            <button class="option-btn" data-correct="true">Quanto maior o valor do parâmetro k mais rápido o oceano absorve o CO₂;</button>
+            <button class="option-btn" data-correct="false">A velocidade de absorção do CO₂ pelos oceanos não depende do valor do parâmetro k;</button>
+            <button class="option-btn" data-correct="false">A velocidade de emissão do CO₂ pelos oceanos não depende do valor do parâmetro k.</button>
+        </div>
+    </div>
+    <button id="btn-voltar-desafio">VOLTAR</button>
+</div>
+
+<!-- ================= DESAFIO FINAL DA MISSÃO OCEANO ================= -->
+<div id="desafio-final-modal">
+    <div class="quiz-card">
+        <h2 class="quiz-title" style="color:#ffeb3b;">DESAFIO FINAL — O LIMITE DOS OCEANOS</h2>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; flex-shrink:0;">
+            <span id="df-contador" style="font-family:'Orbitron',sans-serif; font-size:.8rem; letter-spacing:2px; color:#00e5ff;">1º DESAFIO</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="audio-waves" id="df-waves" style="display:none;">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+                <span style="font-family:'Rajdhani',sans-serif; font-size:.85rem; color:#8fd3e8; opacity:.85;">Missão Oceano · final</span>
+            </div>
+        </div>
+
+        <div id="df-dados">
+            <div class="df-dados-titulo">Dados atuais</div>
+            <div class="df-dados-linha">Oceano: x<sub>0</sub> = <strong>0,5</strong> &nbsp;·&nbsp; equilíbrio x = <strong>1</strong> &nbsp;·&nbsp; pH inicial = <strong>8,1</strong></div>
+            <div class="df-dados-linha"><b>Suponha que</b> para cada unidade de CO₂ absorvido o pH baixa em <strong>1</strong> unidade.</div>
+            <div class="df-dados-linha"><b>Exemplo:</b> Se a concentração de CO_2 sobe <strong>0,1</strong> então o pH baixa <strong>0,1</strong>.</div>
+            <div class="df-dados-linha">Os corais sobrevivem enquanto o pH ≥ <strong>7,7</strong>.</div>
+        </div>
+
+        <!-- COLUNA ESQUERDA: enunciado e alternativas -->
+        <div id="df-corpo">
+            <div id="df-col-esq">
+                <div id="df-conteudo"></div>
+            </div>
+            <!-- COLUNA DIREITA: lousa de cálculos (preenchida pelo JS) -->
+            <div id="df-col-dir"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ---------- CONFIGURAÇÃO 3D (THREE.JS) DE FUNDO ----------
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000511, 0.001);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 18);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+const sunLight = new THREE.DirectionalLight(0x00e5ff, 1.2);
+sunLight.position.set(20, 10, 15);
+scene.add(sunLight);
+
+const earthRadius = 10;
+const textureLoader = new THREE.TextureLoader();
+const earthTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+const cloudTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+
+const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
+const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture, shininess: 25 });
+const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+scene.add(earth);
+
+const cloudGeometry = new THREE.SphereGeometry(earthRadius + 0.12, 64, 64);
+const cloudMaterial = new THREE.MeshPhongMaterial({ map: cloudTexture, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+scene.add(clouds);
+
+const starGeometry = new THREE.BufferGeometry();
+const starCount = 2000;
+const starPositions = new Float32Array(starCount * 3);
+for(let i = 0; i < starCount * 3; i++) { starPositions[i] = (Math.random() - 0.5) * 500; }
+starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starMaterial = new THREE.PointsMaterial({ color: 0x88e5ff, size: 0.7 });
+const stars = new THREE.Points(starGeometry, starMaterial);
+scene.add(stars);
+
+function animate() {
+    requestAnimationFrame(animate);
+    clouds.rotation.y += 0.0003;
+    earth.rotation.y += 0.0004;
+    renderer.render(scene, camera);
+}
+animate();
+
+// ---------- ÁUDIO E VOZ DE GAIA ----------
+let audioCtx;
+function initAudio() {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playSpaceWind() {
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * 2;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+    
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 350;
+    
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.18;
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start();
+}
+function playBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+}
+function playTypingBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+}
+
+// GAIA fala com voz feminina. A API de sintese de fala nao informa o
+// genero das vozes instaladas, entao filtramos pelos nomes delas.
+const VOZES_GAIA_FEMININAS = ['maria', 'luciana', 'francisca', 'helena', 'fernanda',
+    'juliana', 'camila', 'amanda', 'alice', 'beatriz', 'larissa', 'yara',
+    'lucia', 'vitória', 'vitoria', 'ines', 'female', 'feminin', 'feminina'];
+const VOZES_GAIA_MASCULINAS = ['daniel', 'antonio', 'antônio', 'ricardo', 'felipe',
+    'joao', 'joão', 'jorge', 'diego', 'marcos', 'male', 'masculin', 'masculina'];
+
+function escolherVozGaia() {
+    const vozes = window.speechSynthesis.getVoices();
+    if (!vozes.length) return null;
+    const nome = v => (v.name || '').toLowerCase();
+    const ptBR = vozes.filter(v => /^pt[-_]BR/i.test(v.lang));
+    const lista = ptBR.length ? ptBR : vozes;
+    const semMasculinas = lista.filter(
+        v => !VOZES_GAIA_MASCULINAS.some(n => nome(v).includes(n))
+    );
+    const femininas = semMasculinas.filter(
+        v => VOZES_GAIA_FEMININAS.some(n => nome(v).includes(n))
+    );
+    return femininas[0] || semMasculinas[0] || lista[0] || null;
+}
+let gaiaVoice = null;
+function carregarVozes() {
+    const voices = window.speechSynthesis.getVoices();
+    gaiaVoice = escolherVozGaia();
+}
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = carregarVozes;
+}
+
+function playGaiaVoice(text, targetWaves = 'lab-waves', onEndCallback = null) {
+    window.speechSynthesis.cancel();
+    if (!text || text === "") return;
+    
+    let spokenText = text
+    .replace(/k\(1 - C_oce\)/g, "k vezes um, menos, C oceano")
+    .replace(/k\(1 - x\)/g, "k vezes um, menos, x")
+    .replace(/F\(t\)=1-\(1-C_oce\)e^\{-kt\}/g, "F de t é igual a um menos... um menos C oceano elevado a menos k vezes t")
+    .replace(/F\(C_oce\)/g, "F de C oceano")
+    .replace(/F\(x\)/g, "F de x")
+    .replace(/CO_2/g, "C O 2")
+    .replace(/CO₂/g, "C O 2")
+    .replace(/C_atm/g, "C atmosfera")
+    .replace(/C_oce/g, "C oceano")
+    .replace(/F_co2/g, "F C O 2")
+    .replace(/dx\/dt/g, "d x d t");
+        
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    if (gaiaVoice) utterance.voice = gaiaVoice;
+    utterance.lang = 'pt-BR';
+    utterance.pitch = 0.95;
+    utterance.rate = 1.0;
+    
+    const waveEl = document.getElementById(targetWaves);
+    if (waveEl) waveEl.style.display = 'flex';
+    
+    utterance.onend = () => { 
+        if (waveEl) waveEl.style.display = 'none'; 
+        if (onEndCallback && typeof onEndCallback === 'function') {
+            onEndCallback();
+        }
+    };
+    utterance.onerror = () => {
+        if (waveEl) waveEl.style.display = 'none';
+        if (onEndCallback && typeof onEndCallback === 'function') {
+            onEndCallback();
+        }
+    };
+
+    window.speechSynthesis.speak(utterance);
+}
+
+// Converte os marcadores de subscrito (_n), sobrescrito (^{...}) e
+// negrito (**...**) em HTML. Usado pelo typeWriter e pelos trechos em negrito.
+function formatarFragmento(s) {
+    let h = '';
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charAt(i);
+        if (c === '_') {
+            let j = i + 1;
+            if (s.charAt(j) === '{') {                    // forma _{...}
+                let k = j + 1, sub = "";
+                while (k < s.length && s.charAt(k) !== '}') { sub += s.charAt(k); k++; }
+                h += '<sub>' + sub + '</sub>';
+                i = k;
+            } else if (j < s.length && /[a-zA-Z0-9]/.test(s.charAt(j))) {
+                j++;
+                while (j < s.length && /[a-zA-Z0-9]/.test(s.charAt(j))) { j++; }
+                if (j < s.length && s.charAt(j) === '+' && j + 1 < s.length && /[0-9]/.test(s.charAt(j + 1))) { j += 2; }
+                h += '<sub>' + s.substring(i + 1, j) + '</sub>';
+                i = j - 1;
+            } else {
+                h += '_';
+            }
+        } else if (c === '^' && s.charAt(i + 1) === '{') {
+            let j = i + 2;
+            let sup = "";
+            while (j < s.length && s.charAt(j) !== '}') { sup += s.charAt(j); j++; }
+            h += '<sup>' + sup + '</sup>';
+            i = j;
+        } else {
+            h += c;
+        }
+    }
+    return h;
+}
+
+function typeWriter(text, i, targetEl, waveId, cb, voiceText = null) {
+    if (i === 0) {
+        targetEl.innerHTML = "";
+        if (voiceText !== null && voiceText !== "") {
+            playGaiaVoice(voiceText, waveId);
+        } else if (voiceText === "") {
+            window.speechSynthesis.cancel();
+        }
+    }
+
+    if (i < text.length) {
+        if (text.charAt(i) === '_') {
+            let j = i + 1;
+            if (text.charAt(j) === '{') {                     // forma _{...}
+                let k = j + 1, sub = "";
+                while (k < text.length && text.charAt(k) !== '}') { sub += text.charAt(k); k++; }
+                targetEl.innerHTML += `<sub>${sub}</sub>`;
+                i = k;
+            } else if (j < text.length && /[a-zA-Z0-9]/.test(text.charAt(j))) {
+                j++;
+                while (j < text.length && /[a-zA-Z0-9]/.test(text.charAt(j))) { j++; }
+                if (j < text.length && text.charAt(j) === '+' && j + 1 < text.length && /[0-9]/.test(text.charAt(j + 1))) {
+                    j += 2;
+                }
+                const subscript = text.substring(i + 1, j);
+                targetEl.innerHTML += `<sub>${subscript}</sub>`;
+                i = j - 1;
+            } else {
+                targetEl.innerHTML += "_";
+            }
+        } else if (text.charAt(i) === '*' && text.charAt(i + 1) === '*') {
+            let j = i + 2;
+            while (j < text.length && !(text.charAt(j) === '*' && text.charAt(j + 1) === '*')) { j++; }
+            if (j >= text.length) {
+                targetEl.innerHTML += '*';   // sem fechamento: asterisco literal
+            } else {
+                targetEl.innerHTML += '<b>' + formatarFragmento(text.substring(i + 2, j)) + '</b>';
+                i = j + 1;
+            }
+        } else if (text.charAt(i) === '^' && text.charAt(i+1) === '{') {
+            let j = i + 2;
+            let sup = "";
+            while (j < text.length && text.charAt(j) !== '}') {
+                sup += text.charAt(j);
+                j++;
+            }
+            targetEl.innerHTML += `<sup>${sup}</sup>`;
+            i = j;
+        } else {
+            targetEl.innerHTML += text.charAt(i);
+        }
+
+        if (i % 3 === 0) playTypingBeep();
+
+        const page1 = document.getElementById('math-page-1');
+        if (page1) page1.scrollTop = page1.scrollHeight;
+
+        setTimeout(() => {
+            typeWriter(text, i + 1, targetEl, waveId, cb, null);
+        }, 35);
+
+    } else {
+        const aguardarFala = setInterval(() => {
+            if (!window.speechSynthesis.speaking) {
+                clearInterval(aguardarFala);
+                if (cb) cb();
+            }
+        }, 200);
+    }
+}
+
+// ---------- GERENCIAMENTO E ANIMAÇÃO DO QUADRO ----------
+// opcoes.download = true  ->  exibe "BAIXAR O TEXTO EM PDF" ao fim da apresentação
+function startMathBoardSequence(stepsArray, onCompleteCallback, opcoes) {
+    const board = document.getElementById('math-board');
+    const stepsDiv = document.getElementById('math-steps');
+    const contBtn = document.getElementById('math-continue-btn');
+    const mathPage1 = document.getElementById('math-page-1');
+
+    board.style.display = 'flex';
+    stepsDiv.innerHTML = '';
+
+    contBtn.style.display = 'none';
+
+    let currentMathStep = 0;
+
+    function showNextMathLine() {
+        if (currentMathStep < stepsArray.length) {
+            const stepData = stepsArray[currentMathStep];
+            
+            // --- ANIMAÇÃO 1: DA FUNÇÃO f(x) PARA A EQUAÇÃO DE DIFERENÇA ---
+            if (stepData.isAnimation) {
+                /* =======================================================================
+                 *  f(x) = k(1 – x)   ⟶   x(n+1) = x(n) + k(1 – x(n))
+                 *  Só as duas fórmulas e a seta que liga as duas.
+                 *  Layout automático: caixas, setas e viewBox saem do getBBox() real.
+                 * ===================================================================== */
+                const REDUZIDO = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+                const T = REDUZIDO
+                    ? { f1: 60, a1: 220, f3: 420, termo: 560, fim: 900, transic: 1,   stagger: 0,  espera: 350 }
+                    : { f1: 450, a1: 1250, f3: 2300, termo: 2800, fim: 4300, transic: 700, stagger: 110, espera: 900 };
+
+                const uid = 'an' + Math.random().toString(36).slice(2, 7);
+                const CX = 340;   // eixo central das fórmulas
+
+                // ── Estilos (injetados uma única vez) ──────────────────────────────
+                if (!document.getElementById('ann-style')) {
+                    const st = document.createElement('style');
+                    st.id = 'ann-style';
+                    st.textContent = `
+                        @keyframes ann-pop   { 0%{transform:scale(.88);opacity:0} 62%{transform:scale(1.03);opacity:1} 100%{transform:scale(1);opacity:1} }
+                        @keyframes ann-pisca { 0%,100%{opacity:.45} 50%{opacity:1} }
+                        .ann-pop   { transform-box: fill-box; transform-origin: center; animation: ann-pop .5s cubic-bezier(.2,.9,.25,1.2) both; }
+                        .ann-pisca { animation: ann-pisca 1.8s ease-in-out infinite; }
+                        @media (prefers-reduced-motion: reduce) { .ann-pisca { animation: none; } }
+                    `;
+                    document.head.appendChild(st);
+                }
+
+                // ── Card ──────────────────────────────────────────────────────────
+                const animContainer = document.createElement('div');
+                animContainer.style.width = '100%';
+                animContainer.style.margin = '16px 0';
+                animContainer.style.display = 'flex';
+                animContainer.style.justifyContent = 'center';
+                animContainer.style.opacity = '0';
+                animContainer.style.transition = 'opacity .5s ease';
+
+                animContainer.innerHTML = `
+                    <div style="width:100%; max-width:780px; background:rgba(0,15,30,.72); border:1px solid rgba(0,229,255,.4); border-radius:14px; padding:18px 20px 16px; box-shadow:0 0 28px rgba(0,229,255,.18);">
+
+                        <svg id="${uid}-svg" viewBox="0 0 600 220" style="display:block; margin:0 auto; width:100%; max-width:780px; height:auto; max-height:42vh; overflow:visible;" role="img" aria-labelledby="${uid}-tit">
+                            <title id="${uid}-tit">Transformação de f(x) = k(1 – x) na equação de diferença x(n+1) = x(n) + k(1 – x(n))</title>
+
+                            <defs>
+                                <linearGradient id="${uid}-grad" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0"   stop-color="#00e5ff"/>
+                                    <stop offset=".55" stop-color="#4dd0ff"/>
+                                    <stop offset="1"   stop-color="#b388ff"/>
+                                </linearGradient>
+                                <filter id="${uid}-glow" x="-40%" y="-40%" width="180%" height="180%">
+                                    <feGaussianBlur stdDeviation="1.3" result="b"/>
+                                    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                </filter>
+                                <marker id="${uid}-ah" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="9" markerHeight="7" orient="auto">
+                                    <path d="M0 0 L10 4 L0 8 z" fill="url(#${uid}-grad)"/>
+                                </marker>
+                            </defs>
+
+                            <rect id="${uid}-hl1" x="170" y="10" width="340" height="62" rx="12" fill="rgba(0,229,255,.06)" stroke="rgba(0,229,255,.5)" stroke-width="1.3" style="opacity:0; transition:opacity .5s ease;"/>
+                            <text id="${uid}-f1" data-anim x="${CX}" y="52" text-anchor="middle" font-size="36" font-weight="bold" font-family="'Times New Roman', serif" fill="#eaf6ff" style="opacity:0; filter:url(#${uid}-glow);">
+                                <tspan data-tok>f(x) = </tspan><tspan data-tok fill="#ffeb3b">k(1 – x)</tspan>
+                            </text>
+
+                            <!-- seta: a concentração atual entra no modelo -->
+                            <g id="${uid}-a1" data-anim style="opacity:0; transition:opacity .5s ease;">
+                                <path d="M ${CX} 74 L ${CX} 108" fill="none" stroke="url(#${uid}-grad)" stroke-width="2.6" marker-end="url(#${uid}-ah)"/>
+                                <text x="${CX + 18}" y="98" font-size="16" font-family="'Rajdhani', sans-serif" font-weight="600" fill="#9fd8ff">incluída a concentração atual de CO<tspan dy="3" font-size="11">2</tspan></text>
+                            </g>
+
+                            <rect id="${uid}-hl3" x="120" y="112" width="440" height="62" rx="12" fill="rgba(124,77,255,.09)" stroke="rgba(179,136,255,.65)" stroke-width="1.4" style="opacity:0; transition:opacity .5s ease;"/>
+                            <rect id="${uid}-hlt" x="0" y="0" width="10" height="34" rx="7" fill="rgba(255,235,59,.16)" stroke="rgba(255,235,59,.7)" stroke-width="1.2" style="opacity:0; transition:opacity .45s ease;"/>
+                            <text id="${uid}-f3" data-anim x="${CX}" y="154" text-anchor="middle" font-size="36" font-weight="bold" font-family="'Times New Roman', serif" fill="#eaf6ff" style="opacity:0; filter:url(#${uid}-glow);">
+                                <tspan data-tok>x<tspan dy="5" font-size="21">n+1</tspan><tspan dy="-5"> = </tspan></tspan><tspan data-tok>x<tspan dy="5" font-size="21">n</tspan><tspan dy="-5"> + </tspan></tspan><tspan data-tok id="${uid}-termo" fill="#ffeb3b">k(1 – x<tspan dy="5" font-size="21">n</tspan><tspan dy="-5">)</tspan></tspan>
+                            </text>
+
+                            <g id="${uid}-a3" data-anim style="opacity:0; transition:opacity .5s ease;">
+                                <path d="M ${CX} 184 L ${CX} 206" fill="none" stroke="url(#${uid}-grad)" stroke-width="2.4" marker-end="url(#${uid}-ah)"/>
+                            </g>
+                        </svg>
+
+                        <div id="${uid}-leg" data-anim style="opacity:0; transition:opacity .6s ease; display:flex; justify-content:center; gap:24px; flex-wrap:wrap; margin-top:10px; font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600; color:#dff2fb;">
+                            <span><span style="color:#b388ff;">x<sub>0</sub></span> = concentração inicial de CO<sub>2</sub> nos oceanos</span>
+                            <span><span style="color:#b388ff;">x<sub>n</sub></span> = concentração após n iterações</span>
+                            <span style="color:#7de9ff;">n = 0, 1, 2, 3, …</span>
+                        </div>
+                    </div>
+                `;
+
+                stepsDiv.appendChild(animContainer);
+
+                // Centraliza a animação na área visível do quadro (posicionamento instantâneo)
+                let observador = null;
+                const centralizar = () => {
+                    const bloco = animContainer.getBoundingClientRect();
+                    const pagina = mathPage1.getBoundingClientRect();
+                    const folga = Math.max(0, (mathPage1.clientHeight - bloco.height) / 2);
+                    const alvo = Math.round(mathPage1.scrollTop + (bloco.top - pagina.top) - folga);
+                    const maximo = mathPage1.scrollHeight - mathPage1.clientHeight;
+                    const suave = mathPage1.style.scrollBehavior;
+                    mathPage1.style.scrollBehavior = 'auto';
+                    mathPage1.scrollTop = Math.max(0, Math.min(alvo, maximo));
+                    mathPage1.style.scrollBehavior = suave || '';
+                };
+                requestAnimationFrame(centralizar);
+                if (window.ResizeObserver) {
+                    observador = new ResizeObserver(centralizar);
+                    observador.observe(animContainer);
+                    observador.observe(mathPage1);
+                }
+                window.addEventListener('resize', centralizar);
+                setTimeout(centralizar, 150);
+                setTimeout(centralizar, 500);
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(centralizar).catch(() => {});
+                }
+
+                const q = (s) => animContainer.querySelector(s);
+
+                // ── Layout automático a partir do tamanho real das fórmulas ──────────
+                const ajustar = () => {
+                    try {
+                        const envelopar = (idRect, idTxt, px, py) => {
+                            const r = q('#' + uid + '-' + idRect);
+                            const b = q('#' + uid + '-' + idTxt).getBBox();
+                            r.setAttribute('x', b.x - px);
+                            r.setAttribute('y', b.y - py);
+                            r.setAttribute('width', b.width + px * 2);
+                            r.setAttribute('height', b.height + py * 2);
+                            return { x: b.x - px, y: b.y - py, w: b.width + px * 2, h: b.height + py * 2 };
+                        };
+
+                        const r1 = envelopar('hl1', 'f1', 28, 17);
+                        const r3 = envelopar('hl3', 'f3', 28, 17);
+                        envelopar('hlt', 'termo', 9, 6);
+
+                        // seta entre as duas fórmulas
+                        const a1 = q('#' + uid + '-a1');
+                        const topo = Math.round(r1.y + r1.h + 12);
+                        const base = Math.round(r3.y - 12);
+                        a1.querySelector('path').setAttribute('d', `M ${CX} ${topo} L ${CX} ${base}`);
+                        a1.querySelector('text').setAttribute('y', Math.round((topo + base) / 2 + 5));
+
+                        // seta para a legenda
+                        const yLeg = Math.round(r3.y + r3.h + 12);
+                        q('#' + uid + '-a3').querySelector('path')
+                            .setAttribute('d', `M ${CX} ${yLeg} L ${CX} ${yLeg + 24}`);
+
+                        // enquadra tudo no viewBox
+                        const esq = Math.round(Math.min(r1.x, r3.x) - 26);
+                        const dir = Math.round(Math.max(r1.x + r1.w, r3.x + r3.w) + 26);
+                        const altura = Math.ceil(r3.y + r3.h + 48);
+                        q('#' + uid + '-svg').setAttribute('viewBox', `${esq} 0 ${dir - esq} ${altura}`);
+                    } catch (e) { /* texto ainda não mensurável */ }
+                };
+                ajustar();
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(ajustar).catch(() => {});
+                }
+
+                // ── Linha do tempo ─────────────────────────────────────────────────
+                let tmr = null, i = 0, relogio = 0, rodando = false, concluido = false;
+
+                const mostrar = (el, dur) => {
+                    if (!el) return;
+                    el.style.transition = 'opacity ' + (dur || T.transic) + 'ms ease';
+                    el.style.opacity = '1';
+                };
+                const piscar = (el) => {
+                    if (!el) return;
+                    el.classList.remove('ann-pop');
+                    void el.getBoundingClientRect();
+                    el.classList.add('ann-pop');
+                };
+                const montarTokens = (raiz) => {
+                    Array.from(raiz.querySelectorAll('[data-tok]')).forEach((t, k) => {
+                        t.style.opacity = '0';
+                        t.style.transition = 'opacity .34s ease';
+                        t.style.transitionDelay = (k * T.stagger) + 'ms';
+                        t.style.opacity = '1';
+                    });
+                };
+                const mostrarFormula = (idFormula, idRealce) => {
+                    const f = q('#' + uid + '-' + idFormula);
+                    mostrar(f);
+                    piscar(f);
+                    mostrar(q('#' + uid + '-' + idRealce));
+                    montarTokens(f);
+                };
+
+                const avancar = () => {
+                    if (concluido) return;
+                    concluido = true;
+                    clearTimeout(tmr);
+                    rodando = false;
+                    if (observador) { observador.disconnect(); observador = null; }
+                    window.removeEventListener('resize', centralizar);
+                    currentMathStep++;
+                    mathPage1.scrollTop = mathPage1.scrollHeight;
+                    setTimeout(showNextMathLine, T.espera);
+                };
+
+                const ROTEIRO = [
+                    [0, () => { animContainer.style.opacity = '1'; }],
+                    [T.f1, () => { mostrarFormula('f1', 'hl1'); playBeep(); }],
+                    [T.a1, () => {
+                        mostrar(q('#' + uid + '-a1'));
+                        q('#' + uid + '-hl1').classList.add('ann-pisca');
+                        playBeep();
+                    }],
+                    [T.f3, () => { mostrarFormula('f3', 'hl3'); playBeep(); }],
+                    [T.termo, () => {
+                        const hlt = q('#' + uid + '-hlt');
+                        mostrar(hlt);
+                        hlt.classList.remove('ann-pisca');
+                        void hlt.getBoundingClientRect();
+                        hlt.classList.add('ann-pisca');
+                        playBeep();
+                    }],
+                    [T.fim, () => {
+                        mostrar(q('#' + uid + '-a3'));
+                        mostrar(q('#' + uid + '-leg'));
+                        q('#' + uid + '-hl3').classList.add('ann-pisca');
+                        playBeep();
+                        avancar();
+                    }]
+                ];
+
+                const tick = () => {
+                    if (!rodando) return;
+                    const t = performance.now() - relogio;
+                    while (i < ROTEIRO.length && t >= ROTEIRO[i][0]) ROTEIRO[i++][1]();
+                    if (i < ROTEIRO.length) tmr = setTimeout(tick, Math.max(0, ROTEIRO[i][0] - t));
+                    else rodando = false;
+                };
+
+                requestAnimationFrame(() => {
+                    relogio = performance.now();
+                    rodando = true;
+                    tick();
+                });
+                return;
+            }
+
+            // ==========================================================================
+            //  ANIMAÇÃO 2: DA EQUAÇÃO DE DIFERENÇA PARA O MODELO CONTÍNUO (Δt)
+            //  Usa a mesma fábrica da passagem do laboratório (criarAnimacaoDeltaT).
+            // ==========================================================================
+            if (stepData.isAnimacaoDeltaT) {
+                const REDUZIDO = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+                const T = REDUZIDO
+                    ? { curva: 80,  n1: 300,  n2: 700,  n3: 1200, nota: 1700, fim: 2100, espera: 400 }
+                    : { curva: 700, n1: 1900, n2: 4000, n3: 6200, nota: 8600, fim: 9800, espera: 1100 };
+
+                const card = document.createElement('div');
+                card.style.width = '100%';
+                card.style.margin = '14px 0';
+                card.style.display = 'flex';
+                card.style.justifyContent = 'center';
+                stepsDiv.appendChild(card);
+
+                const ctrl = criarAnimacaoDeltaT(card, { etapas: true });
+
+                // Centraliza o card na área visível do quadro (instantâneo)
+                let obsDt = null;
+                const centralizar = () => {
+                    const bloco = card.getBoundingClientRect();
+                    const pagina = mathPage1.getBoundingClientRect();
+                    const folga = Math.max(0, (mathPage1.clientHeight - bloco.height) / 2);
+                    const alvo = Math.round(mathPage1.scrollTop + (bloco.top - pagina.top) - folga);
+                    const maximo = mathPage1.scrollHeight - mathPage1.clientHeight;
+                    const suave = mathPage1.style.scrollBehavior;
+                    mathPage1.style.scrollBehavior = 'auto';
+                    mathPage1.scrollTop = Math.max(0, Math.min(alvo, maximo));
+                    mathPage1.style.scrollBehavior = suave || '';
+                };
+                requestAnimationFrame(centralizar);
+                if (window.ResizeObserver) {
+                    obsDt = new ResizeObserver(centralizar);
+                    obsDt.observe(card);
+                    obsDt.observe(mathPage1);
+                }
+                window.addEventListener('resize', centralizar);
+                setTimeout(centralizar, 150);
+                setTimeout(centralizar, 500);
+                if (document.fonts && document.fonts.ready) {
+                    document.fonts.ready.then(centralizar).catch(() => {});
+                }
+
+                // ── Linha do tempo ─────────────────────────────────────────────────
+                let tmr = null, i = 0, relogio = 0, rodando = false, concluido = false;
+
+                const avancar = () => {
+                    if (concluido) return;
+                    concluido = true;
+                    clearTimeout(tmr);
+                    rodando = false;
+                    ctrl.parar();   // o gráfico permanece visível para o aluno consultar
+                    if (obsDt) { obsDt.disconnect(); obsDt = null; }
+                    window.removeEventListener('resize', centralizar);
+                    currentMathStep++;
+                    mathPage1.scrollTop = mathPage1.scrollHeight;
+                    setTimeout(showNextMathLine, T.espera);
+                };
+
+                const ROTEIRO = [
+                    [0, () => { centralizar(); }],
+                    [T.curva, () => { ctrl.revelar(0); ctrl.setCurva(true); playBeep(); }],   // curva contínua
+                    [T.n1,    () => { ctrl.revelar(1); playBeep(); }],   // Δt = 1
+                    [T.n2,    () => { ctrl.revelar(2); playBeep(); }],   // Δt = 0,1
+                    [T.n3,    () => { ctrl.revelar(3); playBeep(); }],   // Δt = 0,01
+                    [T.nota,  () => { ctrl.setNota(true); playBeep(); }], // o limite
+                    [T.fim,   () => { ctrl.setProgresso(100); playBeep(); avancar(); }]
+                ];
+
+                const tick = () => {
+                    if (!rodando) return;
+                    const t = performance.now() - relogio;
+                    while (i < ROTEIRO.length && t >= ROTEIRO[i][0]) ROTEIRO[i++][1]();
+                    if (i < ROTEIRO.length) tmr = setTimeout(tick, Math.max(0, ROTEIRO[i][0] - t));
+                    else rodando = false;
+                };
+
+                requestAnimationFrame(() => {
+                    relogio = performance.now();
+                    rodando = true;
+                    tick();
+                });
+                return;
+            }
+
+            const line = document.createElement('div');
+            line.style.marginBottom = "18px";
+            line.style.lineHeight = "1.5";
+
+            if (stepData.isFormula) {
+                line.style.color = "#00ff66";      // fórmulas em verde
+                line.style.textAlign = "center";    // fórmulas centralizadas
+                line.style.marginBottom = "22px";
+                line.dataset.formula = "1";         // usado pelo gerador de PDF
+            }
+
+            stepsDiv.appendChild(line);
+            mathPage1.scrollTop = mathPage1.scrollHeight;
+
+            typeWriter(stepData.text, 0, line, 'lab-waves', () => {
+                currentMathStep++;
+                mathPage1.scrollTop = mathPage1.scrollHeight;
+                setTimeout(showNextMathLine, 800);
+            }, stepData.voice !== undefined ? stepData.voice : "");
+
+        } else {
+            contBtn.innerText = "VOLTAR AO LABORATÓRIO >>";
+            contBtn.style.display = 'block';
+            contBtn.onclick = () => {
+                playBeep();
+                board.style.display = 'none';
+                document.getElementById('lab-hud').classList.add('active');
+
+                if (onCompleteCallback) {
+                    onCompleteCallback();
+                } else {
+                    // MUDANÇA PARA A FASE 2 (APÓS O QUADRO NEGRO INICIAL)
+                    prepararLaboratorioFase2();
+                }
+            };
+
+            // download do texto apresentado (só quando a apresentação pede)
+            const dlBtn = document.getElementById('math-download-btn');
+            if (opcoes && opcoes.download && dlBtn) {
+                dlBtn.style.display = 'block';
+                dlBtn.onclick = () => { playBeep(); gerarPdfApresentacao(stepsArray); };
+            } else if (dlBtn) {
+                dlBtn.style.display = 'none';
+            }
+        }
+    }
+    showNextMathLine();
+}
+
+// ---------- GERAÇÃO DINÂMICA DE TABELA E GRÁFICO (FASE 2) ----------
+function renderTabela(x0, k, max_n) {
+    const tbody = document.querySelector('#tabela-iteracao tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    let x = x0;
+    for(let n=0; n<=max_n; n++) {
+        let tr = document.createElement('tr');
+        tr.style.borderBottom = "1px solid rgba(255,255,255,0.15)";
+        
+        let tdn = document.createElement('td');
+        tdn.style.padding = "10px";
+        tdn.innerText = n;
+        
+        let tdx = document.createElement('td');
+        tdx.style.padding = "10px";
+        tdx.innerText = x.toFixed(5).replace('.', ','); // Modificado para 5 casas decimais
+        
+        tr.appendChild(tdn);
+        tr.appendChild(tdx);
+        tbody.appendChild(tr);
+        x = x + k*(1 - x);
+    }
+}
+
+function renderGraficoIteracao(x0, k, max_n) {
+    const canvas = document.getElementById('canvas-grafico');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+    
+    if (W === 0 || H === 0) return;
+    
+    const margin = {left: 60, right: 30, top: 30, bottom: 50};
+    ctx.clearRect(0, 0, W, H);
+    
+    // Eixos
+    ctx.strokeStyle = "rgba(0, 229, 255, 0.6)"; 
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin.left, margin.top); ctx.lineTo(margin.left, H - margin.bottom);
+    ctx.lineTo(W - margin.right, H - margin.bottom); ctx.stroke();
+
+    ctx.font = "12px sans-serif"; 
+    ctx.fillStyle = "#94a3b8";
+    ctx.textAlign = "center";
+    
+    // Eixo X
+    for(let i=0; i<=max_n; i++) {
+        const xx = margin.left + (i / max_n) * (W - margin.left - margin.right);
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.beginPath(); ctx.moveTo(xx, margin.top); ctx.lineTo(xx, H - margin.bottom); ctx.stroke();
+        ctx.fillStyle = "#94a3b8"; ctx.fillText(i, xx, H - margin.bottom + 18);
+    }
+    
+    ctx.textAlign = "right";
+    const minY = 0.0;
+    const maxY = 2.0;
+    // Eixo Y
+    for(let v=0.0; v<=2.0; v+=0.5) {
+        const yy = H - margin.bottom - ((v - minY)/(maxY - minY)) * (H - margin.top - margin.bottom);
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.beginPath(); ctx.moveTo(margin.left, yy); ctx.lineTo(W - margin.right, yy); ctx.stroke();
+        ctx.fillStyle = "#94a3b8"; ctx.fillText(v.toFixed(1), margin.left - 10, yy + 4);
+    }
+
+    ctx.font = "14px Orbitron, sans-serif"; 
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#00e5ff";
+    ctx.fillText("Iteração (n)", margin.left + (W - margin.left - margin.right)/2, H - 5);
+    
+    ctx.save();
+    ctx.translate(15, margin.top + (H - margin.top - margin.bottom)/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("Concentração de CO₂ (x)", 0, 0);
+    ctx.restore();
+    
+    // Linha de Equilíbrio
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = "#0ea5e9"; ctx.lineWidth = 2;
+    const yEq = H - margin.bottom - ((1 - minY)/(maxY - minY)) * (H - margin.top - margin.bottom);
+    ctx.beginPath(); ctx.moveTo(margin.left, yEq); ctx.lineTo(W - margin.right, yEq); ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Desenhar pontos da iteração
+    const lineColor = (x0 < 1) ? "#00e5ff" : "#ff073a";
+    ctx.strokeStyle = lineColor; 
+    ctx.fillStyle = lineColor; 
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    let x = x0;
+    for(let n=0; n<=max_n; n++) {
+        const xx = margin.left + (n / max_n) * (W - margin.left - margin.right);
+        const yy = H - margin.bottom - ((x - minY)/(maxY - minY)) * (H - margin.top - margin.bottom);
+        if(n===0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy);
+        x = x + k*(1 - x);
+    }
+    ctx.stroke();
+    
+    x = x0;
+    for(let n=0; n<=max_n; n++) {
+        const xx = margin.left + (n / max_n) * (W - margin.left - margin.right);
+        const yy = H - margin.bottom - ((x - minY)/(maxY - minY)) * (H - margin.top - margin.bottom);
+        ctx.beginPath(); ctx.arc(xx, yy, 5, 0, Math.PI*2); ctx.fill();
+        x = x + k*(1 - x);
+    }
+}
+
+// ---------- TRANSIÇÃO PARA AS TABELAS E GRÁFICOS (FASE 2) ----------
+function prepararLaboratorioFase2() {
+    // Oculta simuladores em canvas e controles da Fase 1
+    document.getElementById('canvas-oceano').style.display = 'none';
+    document.getElementById('container-controles').style.display = 'none';
+    document.getElementById('formula-container').style.display = 'none';
+    
+    // Mantemos o canvas do gráfico habilitado para desenhar o de iteração
+    document.getElementById('canvas-grafico').style.display = 'block';
+    
+    // Altera os títulos dos painéis (Modificado para incluir a fórmula no título da direita)
+    document.getElementById('panel-esq-header').innerHTML = 'Tabela de Iteração para <span>x<sub>0</sub> = 0,5</span>';
+    setCabecalhoDireito('Gráfico da Evolução para <span>x<sub>0</sub> = 0,5</span><br><span class="formula">x<sub>n+1</sub> = x<sub>n</sub> + 0,6 (1 – x<sub>n</sub>)</span>');
+    
+    // Mostra o container da tabela e constrói dinamicamente até a iteração 21
+    document.getElementById('tabela-container').style.display = 'flex';
+    renderTabela(0.5, 0.6, 21); 
+    
+    // Constrói o gráfico dinâmico até a iteração 21
+    adjustCanvasResolution(document.getElementById('canvas-grafico'));
+    renderGraficoIteracao(0.5, 0.6, 21);
+
+    // Inicia os diálogos da Fase 2
+    currentPhase2Step = 0;
+    runPhase2DialogueSequence();
+}
+
+const phase2Dialogues = [
+    { text: "Observe a tabela acima a esquerda com o resultado das iterações iniciando com x_0 = 0,5.", voice: "Observe a tabela acima a esquerda com o resultado das iterações iniciando com x zero = 0,5.", btn: "Continuar >>" },
+    { text: "As iterações foram obtidas sucessivamente a partir da equação de diferença: x_n+1 = x_n + k (1 - x_n) com k = 0,6.", voice: "As iterações foram obtidas sucessivamente a partir da equação de diferença: x n mais 1 é igual a x n mais k vezes 1 menos x n ... com k = 0,6.", btn: "Continuar >>"},
+    { text: "Podemos tomar que cada iteração seja um avanço no tempo e assim estaremos tratando o tempo de forma discreta.", voice: "Podemos tomar que cada iteração seja um avanço no tempo e assim estaremos tratando o tempo de forma discreta.",btn: "Continuar >>"},
+    { text: "A tabela mostra como a concentração de CO_2 nos oceanos evolui a cada iteração até estabilizar em x = 1.", voice: "A tabela mostra como a concentração de CO_2 nos oceanos evolui a cada iteração até estabilizar em x = 1.", btn: "Continuar >>" },
+    { text: "Do lado direito temos o gráfico que representa as iterações mostradas na tabela.", voice: "Do lado direito temos o gráfico que representa as iterações mostradas na tabela.", btn: "Continuar >>" },
+    { text: "O gráfico também mostra a concentração iniciando em 0,5 e se estabilizando em 1.", voice: "O gráfico também mostra a concentração iniciando em 0,5 e se estabilizando em 1.", btn: "Continuar >>" },
+    { action: "swap_images", text: "Agora a tabela acima a esquerda mostra o resultado das iterações iniciando com x_0 = 1,5.", voice: "Agora a tabela acima a esquerda mostra o resultado das iterações iniciando com x zero = 1,5.", btn: "Continuar >>" },
+    { text: "Veja como a concentração de CO_2 nos oceanos também evolui a cada iteração até estabilizar em x = 1.", voice: "Veja como a concentração de CO_2 nos oceanos também evolui a cada iteração até estabilizar em x = 1.", btn: "Continuar >>"  },
+    { text: "Do lado direito o gráfico representa as iterações quando iniciamos com x maior que 1.", voice: "Do lado direito o gráfico representa as iterações quando iniciamos com x maior que 1.", btn: "Continuar >>" },
+    { text: "Não importa se a concentração inicial de CO_2 nos oceanos é maior ou menor que 1, com o passar do tempo ele sempre se estabilizará em 1.", voice: "Não importa se a concentração inicial de CO_2 nos oceanos é maior ou menor que 1, com o passar do tempo ele sempre se estabilizará em 1.",btn: "Continuar >>" },
+    { text: "Por isso o valor 1 é ponto de equilíbrio estável deste sistema.", voice: "Por isso o valor 1 é ponto de equilíbrio estável deste sistema.", btn: "Continuar >>"},
+    { action: "enable_interactive_sim", text: "Agora você tem o controle. Altere a concentração do CO_2 inicial e o parâmetro k e verifique como a concentração do gás evolui.", voice: "Agora você tem o controle. Altere a concentração do C O 2 inicial e o parâmetro k e verifique como a concentração do gás evolui.", btn: "Continuar >>"},
+    { text: "Fixe a concentração de CO_2 em 0,5 e altere o parâmetro k para 0,10 e depois para k = 0,8 e compare as duas situações.", voice: "Fixe a concentração de CO_2 em 0,5 e altere o parâmetro k para 0,10 e depois para k = 0,8 e compare as duas situações.", btn: "Continuar >>"},
+    { text: "Agora responda ao desafio.", voice: "Agora responda ao desafio.", btn: "Responder Desafio >>"}
+];
+
+let currentPhase2Step = 0;
+let isInteractivePhase2 = false;
+
+function runPhase2DialogueSequence() {
+    const labTextEl = document.getElementById('lab-dialogue-text');
+    const challengeBtn = document.getElementById('challenge-trigger-btn');
+    
+    challengeBtn.style.display = 'none';
+    const stepData = phase2Dialogues[currentPhase2Step];
+
+    if (stepData.action === "swap_images") {
+        // Modificado para incluir a fórmula no título da direita
+        document.getElementById('panel-esq-header').innerHTML = "Tabela de Iteração para <span>x<sub>0</sub> = 1,5</span>";
+        setCabecalhoDireito('Gráfico da Evolução para <span>x<sub>0</sub> = 1,5</span><br><span class="formula">x<sub>n+1</sub> = x<sub>n</sub> + 0,6 (1 – x<sub>n</sub>)</span>');
+        renderTabela(1.5, 0.6, 21);
+        renderGraficoIteracao(1.5, 0.6, 21);
+    } else if (stepData.action === "enable_interactive_sim") {
+        isInteractivePhase2 = true;
+        
+        // Mantém a tabela visível e mostra os controles
+        document.getElementById('tabela-container').style.display = 'flex';
+        document.getElementById('canvas-oceano').style.display = 'none';
+        document.getElementById('container-controles').style.display = 'flex';
+        
+        // Atualiza os cabeçalhos
+        document.getElementById('panel-esq-header').innerHTML = "Tabela de Iterações (Tempo Discreto)";
+        setCabecalhoDireito("Gráfico da Equação de Diferença:<br><span class='formula'>x<sub>n+1</sub> = x<sub>n</sub> + k(1 - x<sub>n</sub>)</span>");
+        
+        // Atualiza o rótulo do controle de concentração para x
+        const labelC = document.getElementById('label-c-oce');
+        if (labelC) labelC.innerText = "Concentração inicial de CO₂ (x₀):";
+        
+        adjustCanvasResolution(document.getElementById('canvas-grafico'));
+        renderTabela(simState.c, simState.k, 21);
+        renderGraficoIteracao(simState.c, simState.k, 21);
+    }
+    
+    typeWriter(stepData.text, 0, labTextEl, 'lab-waves', () => {
+        challengeBtn.innerText = stepData.btn;
+        challengeBtn.style.display = 'block';
+        
+        challengeBtn.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            
+            if (currentPhase2Step < phase2Dialogues.length - 1) {
+                currentPhase2Step++;
+                runPhase2DialogueSequence();
+            } else {
+                // CHAMA O MODAL DO DESAFIO 3
+                const quizModal = document.getElementById('quiz-modal');
+                quizModal.style.display = 'flex';
+                setTimeout(() => quizModal.classList.add('active'), 50);
+            }
+        };
+    }, stepData.voice);
+}
+
+
+
+// ---------- FLUXO DE DIÁLOGOS NO LABORATORIO ----------
+const labDialogues = [
+    { text: "Já vimos que a função F(C_oce) = k(1 - C_oce) representa o fluxo de CO_2 entre atmosfera e oceano em função da concentração inicial no oceano.", btn: "Continuar >>" },
+    { text: "Este fluxo é a taxa de variação.", btn: "Continuar >>" },
+    { text: "Porém, o que realmente nos interessa é determinar a capacidade dos oceanos de absorver o gás ao longo do tempo.", btn: "Continuar >>" },
+    { text: "Assim, precisamos de um modelo que descreva esse sistema dinâmico, ou seja, um sistema que evolui no tempo.", btn: "Continuar >>" },
+    { text: "Este modelo deve determinar, a partir da quantidade inicial de CO_2 nos oceanos, quanto gás ainda pode ser absorvido ao longo do tempo.", btn: "Continuar >>" },
+    { text: "Para simplificar vamos substituir C_oce por x na função e assim teremos que F(x) = k(1 - x).", btn: "Continuar >>" },
+    { text: "Vamos utilizar esta função para prever a evolução da concentração do CO_2 nos oceanos com o passar do tempo.", btn: "Continuar >>" }
+];
+
+let currentLabStep = 0;
+let simState = { c: 0.5, k: 0.40, mode: 'fluxo', useXLabel: false, t: 0, xAgora: 0.5 };
+
+// Cabeçalho do painel direito: grava o texto e garante que ele volte a aparecer.
+// (a animação F(C_oce) → F(x) o oculta enquanto dura)
+function setCabecalhoDireito(html) {
+    const el = document.getElementById('panel-dir-header');
+    if (!el) return;
+    el.style.display = '';
+    el.innerHTML = html;
+}
+
+function animateFormulaSubstitution() {
+    const canvasGrafico = document.getElementById('canvas-grafico');
+    const formulaContainer = document.getElementById('formula-container');
+    const card = document.getElementById('formula-card');
+    const arrows = document.getElementById('formula-arrows');
+    const nova = document.getElementById('formula-nova');
+    const leg = document.getElementById('formula-leg');
+    const cabecalho = document.getElementById('panel-dir-header');
+
+    if (canvasGrafico && formulaContainer) {
+        canvasGrafico.style.display = 'none';
+        formulaContainer.style.display = 'flex';
+    }
+
+    // esconde "Análise Gráfica do Fluxo de CO₂: F(C_oce) = k(1 – C_oce)"
+    // para o cartão da substituição ficar sozinho no painel
+    if (cabecalho) cabecalho.style.display = 'none';
+
+    if (!card || !arrows || !nova) return;
+
+    // Sobe o cartão, mostra a seta de substituição e só então a nova notação.
+    card.style.opacity = '0';
+    setTimeout(() => {
+        card.style.opacity = '1';
+        playBeep();
+
+        setTimeout(() => {
+            arrows.style.opacity = '1';
+            playBeep();
+
+            setTimeout(() => {
+                nova.style.opacity = '1';
+                nova.classList.remove('sub-pop');
+                void nova.getBoundingClientRect();
+                nova.classList.add('sub-pop');
+                simState.useXLabel = true;
+                document.getElementById('label-c-oce').innerText = "Concentração de CO₂ (x):";
+                drawGraficos();
+                playBeep();
+
+                if (leg) {
+                    setTimeout(() => { leg.style.opacity = '1'; }, 350);
+                    playBeep();
+                }
+            }, 700);
+        }, 900);
+    }, 450);
+}
+
+function runLabDialogueSequence() {
+    const labTextEl = document.getElementById('lab-dialogue-text');
+    const challengeBtn = document.getElementById('challenge-trigger-btn');
+    
+    challengeBtn.style.display = 'none';
+    const stepData = labDialogues[currentLabStep];
+    
+    typeWriter(stepData.text, 0, labTextEl, 'lab-waves', () => {
+        challengeBtn.innerText = stepData.btn;
+        challengeBtn.style.display = 'block';
+        
+        if (currentLabStep === 5) {
+            animateFormulaSubstitution();
+        }
+
+        challengeBtn.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            
+            if (currentLabStep < labDialogues.length - 1) {
+                currentLabStep++;
+                runLabDialogueSequence();
+            } else {
+                document.getElementById('lab-hud').classList.remove('active');
+                
+                const boardSteps = [
+                    { 
+                        text: "k = 0,6  e  x = 0,5.", 
+                        voice: "Somente para fazer um exercício vamos escolher um valor para k e outro para x. Vamos fixar k = 0,6 e escolher x = 0,5.  Vamos verificar como o sistema se comporta com estas condições iniciais.",
+                        isFormula: true
+                    },
+                    { text: "Vamos substituir os valores escolhidos para k e x na função do fluxo:", voice: "" },
+                    { text: "F(x) = k (1 - x) =>", voice: "", isFormula: true },
+                    { text: "F(0,5) = 0,6 (1 – 0,5) = 0,3", voice: "", isFormula: true },
+                    { text: "Logo, a concentração atual de CO_2 passa a ser a concentração anterior 0,5 mais o fluxo 0,3 que nos dá uma concentração de 0,8.", voice: "Logo, a concentração atual de CO_2 passa a ser a concentração anterior 0,5 mais o fluxo 0,3 que nos dá uma concentração de 0,8." },
+                    { text: "Substituindo na função o novo valor da concentração de CO_2 : x = 0,8.", voice: "" },
+                    { text: "F(0,8) = 0,6 (1 – 0,8) = 0,12", voice: "", isFormula: true },
+                    { text: "Continuando, a concentração atual de CO_2 passa a ser a anterior 0,8 mais o fluxo 0,12 o que nos dá = 0,92.", voice: "" },
+                    { text: "E se continuarmos repetindo este processo vamos observar que o CO_2 nos oceanos vai aumentando. Este processo de aplicar sucessivamente a regra que determina cada termo a partir do anterior é chamado de iteração.", voice: "E se continuarmos repetindo este processo vamos observar que o CO_2 nos oceanos vai aumentando. Este processo de aplicar sucessivamente a regra que determina cada termo a partir do anterior é chamado de iteração." },
+                    { text: "Vamos incorporar ao modelo a concentração atual de CO₂ nos oceanos, bem como o índice \(n\), que representa cada iteração do processo.", voice: "Vamos incorporar ao modelo a concentração atual de CO₂ nos oceanos, bem como o índice n... que representa cada iteração do processo."},
+                    
+                    // --- ANIMAÇÃO INSERIDA NO QUADRO NEGRO ---
+                    { isAnimation: true },
+                    
+                    { text: "Assim chamaremos x de x_n representando a quantidade atual da concentração.", voice: "Assim chamaremos x de x n representando a quantidade atual da concentração." },
+                    { text: "F(x) será x_n+1 representando a quantidade futura da concentração, ou seja, depois de uma iteração.", voice: "O valor da função será dado por xn+1, representando a quantidade futura da concentração, ou seja, depois de uma iteração." },
+                    { text: "Esta nova equação recebe o nome de equação de diferença:", voice: "Esta nova equação recebe o nome de equação de diferença ..."},
+                    { text: "x_n+1 = x_n + k(1 - x_n)",voice: "", isFormula: true }, 
+                    { text: "onde n = {0, 1, 2, 3, 4, 5, ...}",voice: ""}, 
+                    { text: "A equação de diferença nos mostra como uma váriavel evolui em tempo discreto.", voice: "A equação de diferença ... nos mostra como uma váriavel evolui em tempo discreto."}, 
+                    { text: "Iniciando o processo de iteração com n = 0 e x_0 = 0,5 teremos:", voice: "Iniciando o processo de iteração com n igual a zero e x zero igua a 0,5 teremos" },
+                    { text: "x_1 = 0,5 + 0,6 (1 – 0,5) = 0,8", voice: "", isFormula: true },
+                    { text: "x_2 = 0,8 + 0,6 (1 – 0,8) = 0,92", voice: "", isFormula: true },
+                    { text: "x_3 = 0,92 + 0,6 (1 – 0,92) = 0,968", voice: "", isFormula: true },
+                    { text: "x_4 = 0,968 + 0,6 (1 – 0,968) = 0,9872", voice: "", isFormula: true },
+                    { text: "x_5 = 0,9872 + 0,6 (1 – 0,9872) = 0,99488", voice: "", isFormula: true },
+                    { text: "x_6 = 0,99488 + 0,6 (1 – 0,99488) = 0,997952", voice: "", isFormula: true },
+                    { text: "Observamos assim, que a concentração se aproxima do valor x = 1, que é o valor de equilíbrio do sistema.", voice: "Observamos assim, que a concentração se aproxima do valor x = 1, que é o valor de equilíbrio do sistema." },
+                ];
+                
+                startMathBoardSequence(boardSteps, () => {
+                    prepararLaboratorioFase2();
+                });
+            }
+        };
+    }, stepData.text);
+}
+
+// ---------- INICIALIZAÇÃO AUTOMÁTICA ----------
+// Não há botão de abertura: a etapa começa sozinha assim que o arquivo
+// carrega, para que a passagem de um arquivo para o outro pareça contínua.
+(function iniciarEtapa() {
+    const tela = document.getElementById('start-screen');
+    if (tela) tela.style.display = 'none';
+
+    initAudio();
+    playSpaceWind();
+    carregarVozes();
+
+    const unlockVoice = new SpeechSynthesisUtterance("");
+    window.speechSynthesis.speak(unlockVoice);
+
+    // O navegador só libera o áudio depois de uma interação do usuário, e a
+    // troca de arquivo é automática. Se o contexto ficar suspenso, ele é
+    // retomado no primeiro clique ou tecla, sem exibir aviso algum.
+    const liberarAudio = () => {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        window.removeEventListener('pointerdown', liberarAudio);
+        window.removeEventListener('keydown', liberarAudio);
+    };
+    window.addEventListener('pointerdown', liberarAudio);
+    window.addEventListener('keydown', liberarAudio);
+
+    setTimeout(() => {
+        const labHud = document.getElementById('lab-hud');
+        labHud.classList.add('active');
+
+        initSimulator();
+        runLabDialogueSequence();
+    }, 1000);
+})();
+
+// ---------- LÓGICA DO SIMULADOR (GRÁFICOS E ANIMAÇÕES) ----------
+let oceanCtx = null;
+let graphCtx = null;
+let waveOffset = 0;
+let bubbles = [];
+
+function initBubbles() {
+    bubbles = [];
+    for (let i = 0; i < 25; i++) {
+        bubbles.push({
+            x: Math.random() * 500,
+            y: 120 + Math.random() * 200,
+            size: 1 + Math.random() * 4,
+            speed: 0.5 + Math.random() * 1.5
+        });
+    }
+}
+
+function adjustCanvasResolution(canvas) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if(rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+}
+
+function renderOceano() {
+    const canvas = document.getElementById('canvas-oceano');
+    if (!oceanCtx || !canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    if (w > 0 && h > 0) {
+        oceanCtx.clearRect(0, 0, w, h);
+
+        let isEmitting = concentracaoAtual() > 1.0;
+        let waterGradient = oceanCtx.createLinearGradient(0, 0, 0, h);
+        
+        if (isEmitting) {
+            waterGradient.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+            waterGradient.addColorStop(0.3, 'rgba(185, 28, 28, 0.25)');
+            waterGradient.addColorStop(1, 'rgba(127, 29, 29, 0.85)');
+        } else {
+            waterGradient.addColorStop(0, 'rgba(2, 6, 23, 0.95)');
+            waterGradient.addColorStop(0.3, 'rgba(14, 165, 233, 0.25)');
+            waterGradient.addColorStop(1, 'rgba(4, 135, 183, 0.85)');
+        }
+
+        oceanCtx.fillStyle = waterGradient;
+        oceanCtx.fillRect(0, 0, w, h);
+
+        oceanCtx.fillStyle = isEmitting ? 'rgba(239, 68, 68, 0.2)' : 'rgba(14, 165, 233, 0.2)';
+        oceanCtx.beginPath();
+        oceanCtx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 10) {
+            let y = 120 + Math.sin(x * 0.02 + waveOffset) * 8 + Math.cos(x * 0.01 + waveOffset * 0.5) * 4;
+            oceanCtx.lineTo(x, y);
+        }
+        oceanCtx.lineTo(w, h);
+        oceanCtx.closePath();
+        oceanCtx.fill();
+
+        waveOffset += 0.025;
+
+        drawCorals(oceanCtx, w, h);
+
+        oceanCtx.fillStyle = isEmitting ? 'rgba(254, 202, 202, 0.5)' : 'rgba(224, 242, 254, 0.4)';
+        bubbles.forEach(function(bubble) {
+            oceanCtx.beginPath();
+            oceanCtx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+            oceanCtx.fill();
+
+            if (isEmitting) {
+                bubble.y -= bubble.speed;
+                if (bubble.y < 110) { bubble.y = h + Math.random() * 20; bubble.x = Math.random() * w; }
+            } else {
+                bubble.y += bubble.speed;
+                if (bubble.y > h) { bubble.y = 110 - Math.random() * 20; bubble.x = Math.random() * w; }
+            }
+        });
+
+        drawSciFiHUD(oceanCtx, w, h);
+    }
+    requestAnimationFrame(renderOceano);
+}
+
+function drawCorals(ctx, w, h) {
+    const bottomY = h - 5;
+    ctx.strokeStyle = concentracaoAtual() > 1.0 ? 'rgba(180, 83, 9, 0.7)' : 'rgba(34, 197, 94, 0.7)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let i = 20; i < w; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, bottomY);
+        let sway = Math.sin(waveOffset + i) * 12;
+        ctx.quadraticCurveTo(i - 5 + sway * 0.5, bottomY - 30, i + sway, bottomY - 70);
+        ctx.stroke();
+    }
+}
+
+function drawSciFiHUD(ctx, w, h) {
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.lineWidth = 1;
+    const padding = 15;
+    const len = 15;
+
+    ctx.beginPath();
+    ctx.moveTo(padding, padding + len); ctx.lineTo(padding, padding); ctx.lineTo(padding + len, padding);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(w - padding, padding + len); ctx.lineTo(w - padding, padding); ctx.lineTo(w - padding - len, padding);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(w - 30, 40, 8, 120);
+
+    let isEmitting = concentracaoAtual() > 1.0;
+    ctx.fillStyle = isEmitting ? '#ef4444' : '#0ea5e9';
+    let fillPercent = Math.min(concentracaoAtual() / 1.5, 1.0);
+    let barHeight = 120 * fillPercent;
+    ctx.fillRect(w - 30, 40 + (120 - barHeight), 8, barHeight);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('(c)', w - 42, 32);
+    ctx.fillText(concentracaoAtual().toFixed(2), w - 38, 175);
+
+    if (isEmitting) {
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 10px sans-serif';        
+    }
+}
+
+function drawGraficos() {
+    const canvas = document.getElementById('canvas-grafico');
+    if (!graphCtx || !canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w === 0 || h === 0) return;
+
+    graphCtx.clearRect(0, 0, w, h);
+
+    const padLeft = 45;
+    const padBottom = 30;
+    const graphW = w - padLeft - 20;
+    const graphH = h - padBottom - 25;
+
+    const F_max = 1.0;
+    const F_min = -0.1;
+    const F_span = 1.1; 
+    const yZero = 25 + graphH * (F_max / F_span);
+
+    graphCtx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    graphCtx.lineWidth = 1.5;
+    graphCtx.beginPath();
+    graphCtx.moveTo(padLeft, yZero);
+    graphCtx.lineTo(w - 20, yZero);
+    graphCtx.stroke();
+
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = 0; i <= 4; i++) {
+        let y = 25 + (graphH / 4) * i;
+        if (Math.abs(y - yZero) > 5) {
+            graphCtx.beginPath();
+            graphCtx.moveTo(padLeft, y); graphCtx.lineTo(w - 20, y);
+            graphCtx.stroke();
+        }
+    }
+
+    const xSat = padLeft + graphW * (1.0 / 1.5);
+    graphCtx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+    graphCtx.setLineDash([3, 3]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(xSat, 25); graphCtx.lineTo(xSat, h - padBottom);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+
+    graphCtx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    graphCtx.lineWidth = 1.5;
+    graphCtx.beginPath();
+    graphCtx.moveTo(padLeft, 25); graphCtx.lineTo(padLeft, h - padBottom);
+    graphCtx.stroke();
+
+    graphCtx.fillStyle = '#94a3b8';
+    graphCtx.font = '11px sans-serif';
+
+    graphCtx.fillText('F(C_oce) Fluxo', 5, 15);
+    graphCtx.fillText('+' + F_max.toFixed(1), 12, 29);
+    graphCtx.fillText('0.0', 20, yZero + 4);
+    graphCtx.fillText(F_min.toFixed(1), 12, h - padBottom + 4);
+
+    graphCtx.fillText('0.0', padLeft - 6, yZero + 16);
+    graphCtx.fillText('0.5', padLeft + graphW * (0.5 / 1.5) - 8, yZero + 16);
+
+    graphCtx.fillStyle = '#ef4444';
+    graphCtx.fillText('1', xSat - 4, yZero + 16);
+
+    graphCtx.fillStyle = '#94a3b8';
+    graphCtx.font = 'italic 11px sans-serif';
+    graphCtx.fillText('c', w - 22, yZero + 16);
+    
+    graphCtx.font = '11px sans-serif';
+    graphCtx.fillText(simState.useXLabel ? 'x' : 'C_oce', w - 45, yZero + 30);
+
+    graphCtx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+    graphCtx.font = '10px sans-serif';
+    graphCtx.fillText('Absorção (F > 0)', padLeft + 40, 38);
+
+    graphCtx.fillStyle = 'rgba(255, 40, 40, 0.9)';
+    graphCtx.fillText('Emissão (F < 0)', padLeft + 10, yZero + 44);
+
+    graphCtx.strokeStyle = '#0ea5e9';
+    graphCtx.lineWidth = 2.5;
+    graphCtx.beginPath();
+
+    let startY = 25 + graphH * ((F_max - simState.k * (1 - 0.0)) / F_span);
+    let endY = 25 + graphH * ((F_max - simState.k * (1 - 1.5)) / F_span);
+
+    graphCtx.moveTo(padLeft, startY);
+    graphCtx.lineTo(padLeft + graphW, endY);
+    graphCtx.stroke();
+
+    let currentF = simState.k * (1 - simState.c);
+    let currentX = padLeft + graphW * (concentracaoAtual() / 1.5);
+    let currentY = 25 + graphH * ((F_max - currentF) / F_span);
+
+    graphCtx.shadowColor = currentF < 0 ? '#ef4444' : '#38bdf8';
+    graphCtx.shadowBlur = 12;
+    graphCtx.fillStyle = currentF < 0 ? '#ef4444' : '#ffffff';
+    graphCtx.beginPath();
+    graphCtx.arc(currentX, currentY, 6, 0, Math.PI * 2);
+    graphCtx.fill();
+    graphCtx.shadowBlur = 0;
+
+    graphCtx.strokeStyle = currentF < 0 ? 'rgba(239, 68, 68, 0.5)' : 'rgba(56, 189, 248, 0.4)';
+    graphCtx.setLineDash([3, 3]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(currentX, yZero);
+    graphCtx.lineTo(currentX, currentY);
+    graphCtx.lineTo(padLeft, currentY);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+
+    // ---- valor do FLUXO no eixo vertical (guia tracejada horizontal) ----
+    // F = k(1 - x): absorption quando F > 0 (ciano), emissao quando F < 0 (vermelho).
+    if (currentY >= 25 && currentY <= h - padBottom) {
+        graphCtx.save();
+
+        // marca curta atravessando o eixo vertical
+        graphCtx.strokeStyle = currentF < 0 ? 'rgba(239, 68, 68, 0.85)' : 'rgba(56, 189, 248, 0.85)';
+        graphCtx.lineWidth = 2;
+        graphCtx.beginPath();
+        graphCtx.moveTo(padLeft - 6, currentY);
+        graphCtx.lineTo(padLeft, currentY);
+        graphCtx.stroke();
+
+        // rotulo sobre a linha tracejada, logo apos o eixo
+        graphCtx.font = 'bold 11px sans-serif';
+        graphCtx.textAlign = 'left';
+        graphCtx.textBaseline = 'bottom';
+        graphCtx.fillStyle = currentF < 0 ? 'rgba(248, 113, 113, 0.98)' : 'rgba(125, 233, 255, 0.98)';
+        graphCtx.fillText('F = ' + fmtFluxo(currentF), padLeft + 7, currentY - 3);
+
+        graphCtx.restore();
+    }
+}
+
+// Formata o fluxo com ate 2 casas e virgula decimal: 0,3  0,12  -0,05
+function fmtFluxo(v) {
+    let s = Math.abs(v) < 0.005 ? '0.00' : v.toFixed(2);
+    if (s.endsWith('0')) s = s.slice(0, -1);   // 0.30 -> 0.3 | 0.10 -> 0.1
+    return s.replace('.', ',');
+}
+
+function gerarControles() {
+    const container = document.getElementById('container-controles');
+    let html = '<div class="slider-group">' +
+        '<div class="slider-header">' +
+            '<span id="label-c-oce">Concentração de CO₂ (C_oce):</span>' +
+            '<span class="highlight" id="val-c">' + simState.c.toFixed(2) + '</span>' +
+        '</div>' +
+        '<input type="range" id="slider-c" min="0.0" max="2.0" step="0.05" value="' + simState.c + '">' +
+    '</div>' +
+    '<div class="slider-group" style="margin-top: 10px;">' +
+        '<div class="slider-header">' +
+            '<span>Parâmetro de transferência (k):</span>' +
+            '<span class="highlight" id="val-k">' + simState.k.toFixed(2) + '</span>' +
+        '</div>' +
+        '<input type="range" id="slider-k" min="0.0" max="1.0" step="0.05" value="' + simState.k + '">' +
+    '</div>';
+
+    container.innerHTML = html;
+
+    document.getElementById('slider-c').addEventListener('input', function(e) {
+        simState.c = parseFloat(e.target.value);
+        document.getElementById('val-c').textContent = simState.c.toFixed(2);
+        if (modoContinuo) {
+            reiniciarTempoContinuo();
+        } else if (isInteractivePhase2) {
+            renderTabela(simState.c, simState.k, 21);
+            renderGraficoIteracao(simState.c, simState.k, 21);
+        } else {
+            drawGraficos();
+        }
+    });
+
+    document.getElementById('slider-k').addEventListener('input', function(e) {
+        simState.k = parseFloat(e.target.value);
+        document.getElementById('val-k').textContent = simState.k.toFixed(2);
+        if (modoContinuo) {
+            reiniciarTempoContinuo();
+        } else if (isInteractivePhase2) {
+            renderTabela(simState.c, simState.k, 21);
+            renderGraficoIteracao(simState.c, simState.k, 21);
+        } else {
+            drawGraficos();
+        }
+    });
+}
+
+function initSimulator() {
+    const canvasOceano = document.getElementById('canvas-oceano');
+    const canvasGrafico = document.getElementById('canvas-grafico');
+    const formulaContainer = document.getElementById('formula-container');
+    const arrows = document.getElementById('formula-arrows');
+    const nova = document.getElementById('formula-nova');
+    const cardFormula = document.getElementById('formula-card');
+    const legFormula = document.getElementById('formula-leg');
+
+    if (canvasGrafico) canvasGrafico.style.display = 'block';
+    if (formulaContainer) formulaContainer.style.display = 'none';
+    if (arrows) arrows.style.opacity = '0';
+    if (nova) { nova.style.opacity = '0'; nova.classList.remove('sub-pop'); }
+    if (cardFormula) cardFormula.style.opacity = '0';
+    if (legFormula) legFormula.style.opacity = '0';
+    const cabDir = document.getElementById('panel-dir-header');
+    if (cabDir) cabDir.style.display = '';
+
+    simState.useXLabel = false;
+
+    oceanCtx = canvasOceano.getContext('2d');
+    graphCtx = canvasGrafico.getContext('2d');
+
+    adjustCanvasResolution(canvasOceano);
+    adjustCanvasResolution(canvasGrafico);
+
+    initBubbles();
+    gerarControles();
+
+    window.addEventListener('resize', function() {
+        adjustCanvasResolution(canvasOceano);
+        adjustCanvasResolution(canvasGrafico);
+        
+        if (modoContinuo) {
+            renderGraficoContinuo();
+        } else if (isInteractivePhase2) {
+            renderGraficoIteracao(simState.c, simState.k, 21);
+        } else if (document.getElementById('tabela-container') && document.getElementById('tabela-container').style.display === 'flex') {
+            const isSwap = document.getElementById('panel-esq-header').innerHTML.includes('1,5');
+            renderGraficoIteracao(isSwap ? 1.5 : 0.5, 0.6, 21);
+        } else if (document.getElementById('canvas-grafico').style.display === 'block') {
+            drawGraficos();
+        }
+    });
+
+    renderOceano();
+    drawGraficos();
+}
+
+// ==========================================================================
+//  QUADRO NEGRO DA EDO
+//  Texto conforme "texto tempo continuo - jogo.docx":
+//  fórmulas em verde e centralizadas, negritos preservados.
+// ==========================================================================
+const edoSteps = [
+    { text: "Se desejamos determinar a concentração de CO_2 em um instante específico, precisamos descrever o sistema por meio de um modelo em tempo contínuo.",
+      voice: "Se desejamos determinar a concentração de C O 2 em um instante específico, precisamos descrever o sistema por meio de um modelo em tempo contínuo." },
+
+    { text: "Para isso, partiremos do fluxo", voice: "Para isso, partiremos do fluxo" },
+    { text: "F(x) = k(1 - x)", voice: "F de x igual a k vezes um menos x.", isFormula: true },
+    { text: "que representa a taxa de variação da concentração de CO_2 de acordo com o estado atual do sistema.",
+      voice: "que representa a taxa de variação da concentração de C O 2 de acordo com o estado atual do sistema." },
+
+    { text: "Observe que, nessa expressão, o tempo ainda não aparece explicitamente. Para introduzir a evolução da concentração ao longo do tempo, podemos utilizar a EQUAÇÃO DE DIFERENÇA que já estudamos:",
+      voice: "Observe que, nessa expressão, o tempo ainda não aparece explicitamente. Para introduzir a evolução da concentração ao longo do tempo, podemos utilizar a equação de diferença que já estudamos." },
+    { text: "x_{n+1} = x_n + Δt · k(1 - x_n)", voice: "x n mais um igual a x n mais delta t vezes k vezes um menos x n.", isFormula: true },
+    { text: "Nessa equação, Δt representa um intervalo de tempo. O índice n indica cada instante considerado, e x_n representa a concentração de CO_2 naquele instante.",
+      voice: "Nessa equação, delta t representa um intervalo de tempo. O índice n indica cada instante considerado, e x n representa a concentração de C O 2 naquele instante." },
+    { text: "Assim, o modelo descreve a evolução da concentração em passos de tempo. Por exemplo, podemos considerar intervalos de 1 ano, 0,5 ano, 0,1 ano, entre outros.",
+      voice: "Assim, o modelo descreve a evolução da concentração em passos de tempo. Por exemplo, podemos considerar intervalos de um ano, meio ano, um décimo de ano, entre outros." },
+
+    { text: "Mas, e se quisermos conhecer a taxa de variação da concentração em um instante específico, e não apenas a variação entre dois instantes?",
+      voice: "Mas, e se quisermos conhecer a taxa de variação da concentração em um instante específico, e não apenas a variação entre dois instantes?" },
+    { text: "Nesse caso, precisamos da ideia de taxa de variação instantânea.",
+      voice: "Nesse caso, precisamos da ideia de taxa de variação instantânea." },
+    { text: "A taxa de variação instantânea de uma grandeza em relação ao tempo é chamada de DERIVADA. Quando a grandeza x varia em função do tempo t, sua derivada é representada por",
+      voice: "A taxa de variação instantânea de uma grandeza em relação ao tempo é chamada de derivada. Quando a grandeza x varia em função do tempo t, sua derivada é representada por" },
+    { text: "dx/dt", voice: "d x sobre d t.", isFormula: true },
+    { text: "Essa notação indica a taxa de variação de x em relação ao tempo t.",
+      voice: "Essa notação indica a taxa de variação de x em relação ao tempo t." },
+    { text: "Como o fluxo F(x) representa a taxa de variação da concentração, podemos associá-lo à derivada de x em relação ao tempo:",
+      voice: "Como o fluxo F de x representa a taxa de variação da concentração, podemos associá-lo à derivada de x em relação ao tempo." },
+    { text: "dx/dt = F(x)", voice: "d x sobre d t igual a F de x.", isFormula: true },
+    { text: "Como", voice: "Como" },
+    { text: "F(x) = k(1 - x) => ", voice: "F de x igual a k vezes um menos x o que implica que .", isFormula: true },
+    
+    { text: "dx/dt = k(1 - x)", voice: "d x sobre d t é igual a k vezes um menos x.", isFormula: true },
+    { text: "esta última equação é chamada de EQUAÇÃO DIFERENCIAL ORDINÁRIA (EDO).",
+      voice: "esta última equação é chamada de equação diferencial ordinária, E D Ó" },
+    { text: "Podemos compreender melhor a relação entre o modelo discreto e o modelo contínuo retomando a equação de diferença:",
+      voice: "Podemos compreender melhor a relação entre o modelo discreto e o modelo contínuo retomando a equação de diferença." },
+    { text: "x_{n+1} = x_n + Δt · k(1 - x_n)", voice: "x n mais um igual a x n mais delta t vezes k vezes um menos x n.", isFormula: true },
+    { text: "Subtraindo x_n dos dois lados:", voice: "Subtraindo x n dos dois lados." },
+    { text: "x_{n+1} - x_n = Δt · k(1 - x_n)", voice: "x n mais um menos x n igual a delta t vezes k vezes um menos x n.", isFormula: true },
+    { text: "Dividindo por Δt:", voice: "Dividindo por delta t." },
+    { text: "(x_{n+1} - x_n)/Δt = k(1 - x_n)", voice: "X n mais um menos x n, dividido por delta t, igual a k vezes um menos x n.", isFormula: true },
+
+       { text: "O lado esquerdo representa a taxa de variação média da concentração durante o intervalo de tempo Δt.",
+      voice: "O lado esquerdo representa a taxa de variação média da concentração durante o intervalo de tempo delta t." },
+    { text: "Observe que essa taxa é calculada considerando dois instantes: o início e o final do intervalo.",
+      voice: "Observe que essa taxa é calculada considerando dois instantes: o início e o final do intervalo." },
+    { text: "Agora imagine que diminuímos cada vez mais o intervalo de tempo, de forma que este intervalo seja quase zero:",
+      voice: "Agora imagine que diminuímos cada vez mais o intervalo de tempo, de forma que este intervalo seja quase zero." },
+    { text: "Δt → 0", voice: "delta t tende a zero.", isFormula: true },
+    { text: "À medida que o intervalo fica menor, a taxa de variação média passa a representar cada vez melhor a taxa de variação naquele instante. No limite, obtemos a taxa de variação instantânea, isto é, a derivada:",
+      voice: "À medida que o intervalo fica menor, a taxa de variação média passa a representar cada vez melhor a taxa de variação naquele instante. No limite, obtemos a taxa de variação instantânea, isto é, a derivada." },
+    { text: "lim (Δt → 0)  (x(t + Δt) - x(t))/Δt = dx/dt",
+      voice: "No limite, quando delta t tende a zero, x de t mais delta t menos x de t, dividido por delta t, é igual a d x sobre d t.", isFormula: true },
+    { text: "Portanto, podemos entender intuitivamente a derivada como aquilo que obtemos quando calculamos uma taxa de variação média em intervalos de tempo cada vez menores.",
+      voice: "Portanto, podemos entender intuitivamente a derivada como aquilo que obtemos quando calculamos uma taxa de variação média em intervalos de tempo cada vez menores." },
+    { text: "A partir da equação diferencial", voice: "A partir da equação diferencial" },
+    { text: "dx/dt = k(1 - x)", voice: "d x sobre d t igual a k vezes um menos x.", isFormula: true },
+    { text: "podemos utilizar técnicas matemáticas de INTEGRAÇÃO para obter uma expressão que forneça diretamente a concentração x em função do tempo.",
+      voice: "podemos utilizar técnicas matemáticas de integração para obter uma expressão que forneça diretamente a concentração x em função do tempo." },
+    { text: "Considerando a condição inicial", voice: "Considerando a condição inicial" },
+    { text: "x(0) = x_0" ,voice: "x de zero igual a x zero.", isFormula: true },
+    { text: "a solução é", voice: "a solução é" },
+    { text: "x(t) = 1 - (1 - x_0)e^{-kt}", voice: "x de t é igual a um menos, um menos x zero, vezes e elevado a menos k t.", isFormula: true },
+    { text: "Essa expressão constitui o modelo em tempo contínuo do sistema. Ela permite determinar a concentração x em qualquer instante t, a partir da concentração inicial x_0, sem a necessidade de calcular passo a passo as iterações da equação de diferença.",
+      voice: "Essa expressão constitui o modelo em tempo contínuo do sistema. Ela permite determinar a concentração x em qualquer instante t, a partir da concentração inicial x zero, sem a necessidade de calcular passo a passo as iterações da equação de diferença." }
+    
+];
+
+// ==========================================================================
+//  PAINEL DA EQUAÇÃO DE DIFERENÇA
+//  Ocupa o lugar do gráfico no laboratório e evolui em três movimentos:
+//    1) x_{n+1} = x_n + k(1 - x_n)
+//    2) insere o Δt    →  x_{n+1} = x_n + Δt · k(1 - x_n)
+//    3) troca k por 0,6 →  x_{n+1} = x_n + Δt · 0,6(1 - x_n)
+//  Sai de cena quando entra o gráfico de Δt = 1.
+// ==========================================================================
+function criarPainelEquacao(host, opcoes) {
+    const cfg = opcoes || {};
+    const cid = 'eq' + Math.random().toString(36).slice(2, 7);
+    const fonteEq = cfg.fonte || 'clamp(26px, 3.6vw, 50px)';
+    const largura = cfg.largura || '1020px';
+    const sub = 'font-size:.55em;';
+
+    const card = document.createElement('div');
+    card.style.width = '100%';
+    card.style.maxWidth = largura;
+    card.style.background = 'rgba(0,15,30,.72)';
+    card.style.border = '1px solid rgba(0,229,255,.4)';
+    card.style.borderRadius = '14px';
+    card.style.boxShadow = '0 0 28px rgba(0,229,255,.18)';
+    card.style.padding = 'clamp(20px, 4vh, 46px) clamp(14px, 2vw, 30px)';
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .55s ease';
+
+    const seg = (id, txt, cor) => `<span id="${cid}-${id}" class="eq-seg" style="color:${cor};">${txt}</span>`;
+
+    card.innerHTML = `
+        <div style="display:flex; align-items:baseline; justify-content:center;
+                    font-family:'Times New Roman', serif; font-weight:bold;
+                    font-size:${fonteEq}; line-height:1.3; white-space:nowrap;">
+            <span>x<sub style="${sub}">n+1</sub></span>
+            <span>&nbsp;=&nbsp;</span>
+            <span>x<sub style="${sub}">n</sub></span>
+            <span>&nbsp;+&nbsp;</span>
+            ${seg('dt',  'Δt&nbsp;·&nbsp;', '#ffeb3b')}
+            ${seg('k',   'k',             '#eaf6ff')}
+            ${seg('num', '0,6',           '#ffeb3b')}
+            <span>(1&nbsp;−&nbsp;x<sub style="${sub}">n</sub>)</span>
+        </div>
+    `;
+
+    host.appendChild(card);
+
+    const q = (s) => card.querySelector(s);
+    const segDt = q('#' + cid + '-dt');
+    const segK = q('#' + cid + '-k');
+    const segNum = q('#' + cid + '-num');
+
+    // some com largura e opacidade zeradas
+    const zerar = (el) => { if (el) { el.style.maxWidth = '0px'; el.style.opacity = '0'; } };
+    zerar(segDt);
+    zerar(segNum);
+
+    const abrir = (el) => {
+        if (!el || el.style.opacity === '1') return;
+        el.style.maxWidth = (el.scrollWidth + 2) + 'px';
+        el.style.opacity = '1';
+    };
+    const fechar = (el) => {
+        if (!el || el.style.opacity === '0') return;
+        el.style.opacity = '0';
+        el.style.maxWidth = '0px';
+    };
+
+    let removido = false;
+
+    return {
+        card: card,
+        mostrar: function () { card.style.opacity = '1'; },
+        inserirDt: function () { abrir(segDt); },
+        substituirK: function () { fechar(segK); abrir(segNum); },
+        destruir: function () {
+            if (removido) return;
+            removido = true;
+            card.style.opacity = '0';
+            setTimeout(function () {
+                if (card.parentNode) card.parentNode.removeChild(card);
+            }, 560);
+        }
+    };
+}
+
+// ==========================================================================
+//  ANIMAÇÃO Δt — FÁBRICA REUTILIZÁVEL
+//  Monta o gráfico dentro de `host` e devolve um controlador.
+//  Usada em dois lugares:
+//    • quadro negro  → criarAnimacaoDeltaT(host, { etapas: true })  (automática)
+//    • laboratório   → criarAnimacaoDeltaT(host, { etapas: false }) (passo a passo)
+//  Curvas:  x_n = 1 - (1 - x_0)·(1 - k·Δt)^n   e   x(t) = 1 - (1 - x_0)e^{-kt}
+// ==========================================================================
+function criarAnimacaoDeltaT(host, opcoes) {
+    const cfg = opcoes || {};
+    const etapas = !!cfg.etapas;
+    const mostrarNota = cfg.nota !== false;   // o painel do laboratório não usa a faixa do limite
+    const mostrarEquacao = cfg.equacao !== false;  // no laboratório a equação fica só no título
+    const K = (cfg.k !== undefined) ? cfg.k : 0.6;
+    const X0 = (cfg.x0 !== undefined) ? cfg.x0 : 0.5;
+    const TMAX = cfg.tmax || 10;
+    const YMIN = 0.40, YMAX = 1.00;
+    const alturaCv = cfg.altura || 'min(210px, 24vh)';
+    const larguraCard = cfg.largura || '640px';
+
+    const NIVEIS = [
+        { dt: 1,    txt: '1',    kdt: '0,6',   pontos: 11,   tag: 'poucos pontos' },
+        { dt: 0.1,  txt: '0,1',  kdt: '0,06',  pontos: 101,  tag: 'mais pontos' },
+        { dt: 0.01, txt: '0,01', kdt: '0,006', pontos: 1001, tag: 'muitos pontos' }
+    ];
+    const CORES = ['#ffeb3b', '#ff7a45', '#00ffa0'];
+
+    // forma fechada da recorrência
+    const SERIES = NIVEIS.map(nv => {
+        const a = 1 - K * nv.dt, v = [];
+        for (let n = 0; n < nv.pontos; n++) v.push(1 - (1 - X0) * Math.pow(a, n));
+        return v;
+    });
+
+    const cid = 'dt' + Math.random().toString(36).slice(2, 7);
+
+    // ── Estilos (uma única vez) ────────────────────────────────────────────
+    if (!document.getElementById('ann-style-dt')) {
+        const st = document.createElement('style');
+        st.id = 'ann-style-dt';
+        st.textContent = `
+            @keyframes ann-pop   { 0%{transform:scale(.85);opacity:0} 62%{transform:scale(1.04);opacity:1} 100%{transform:scale(1);opacity:1} }
+            .ann-pop   { transform-box: fill-box; transform-origin: center; animation: ann-pop .5s cubic-bezier(.2,.9,.25,1.2) both; }
+            .ann-bar   { height: 5px; border-radius: 99px; background: rgba(0,229,255,.14); overflow: hidden; }
+            .ann-bar > i { display: block; height: 100%; width: 0; border-radius: 99px;
+                           background: linear-gradient(90deg,#00e5ff,#7c4dff);
+                           box-shadow: 0 0 12px rgba(0,229,255,.6);
+                           transition: width .55s cubic-bezier(.2,.8,.2,1); }
+            .ann-btn   { cursor: pointer; user-select: none; background: rgba(0,229,255,.08); color: #7de9ff;
+                         border: 1px solid rgba(0,229,255,.45); border-radius: 8px; padding: 7px 15px;
+                         font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px;
+                         letter-spacing: 1.4px; transition: background .2s ease, transform .15s ease; }
+            .ann-btn:hover { background: rgba(0,229,255,.22); transform: translateY(-1px); }
+        `;
+        document.head.appendChild(st);
+    }
+
+    const linhaTabela = (i) => {
+        const nv = NIVEIS[i];
+        return `<tr data-n="${i}">
+            <td style="padding:3px 6px; text-align:left;  color:${CORES[i]}; font-weight:700;">${nv.txt}</td>
+            <td style="padding:3px 6px; text-align:left;  font-family:'Times New Roman',serif;">x<sub>n+1</sub> = x<sub>n</sub> + ${nv.kdt}(1 − x<sub>n</sub>)</td>
+            <td style="padding:3px 6px; text-align:right; font-weight:700;">${nv.pontos}</td>
+        </tr>`;
+    };
+
+    const card = document.createElement('div');
+    card.style.width = '100%';
+    card.style.maxWidth = larguraCard;
+    card.style.background = 'rgba(0,15,30,.72)';
+    card.style.border = '1px solid rgba(0,229,255,.4)';
+    card.style.borderRadius = '14px';
+    card.style.padding = '14px 16px 12px';
+    card.style.boxShadow = '0 0 28px rgba(0,229,255,.18)';
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .5s ease';
+
+    card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap;">
+            <span id="${cid}-badge" style="font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px; letter-spacing:1.8px; color:#0b1a2a; background:linear-gradient(90deg,#00e5ff,#7c4dff); padding:3px 10px; border-radius:99px; white-space:nowrap;">Δt = 1</span>
+            <span id="${cid}-dica" style="font-family:'Rajdhani',sans-serif; font-size:12.5px; color:#8fd3e8; opacity:.9;">poucos pontos</span>
+        </div>
+
+        <div id="${cid}-eq" style="text-align:center; font-family:'Times New Roman',serif; font-size:20px; font-weight:bold; color:#fff; margin:2px 0 8px; opacity:0; transition:opacity .5s ease;${mostrarEquacao ? '' : ' display:none;'}">
+            x<sub>n+1</sub> = x<sub>n</sub> +
+            <span id="${cid}-kdt" style="color:#ffeb3b;">k · Δt = ${NIVEIS[0].kdt}</span> · (1 − x<sub>n</sub>)
+        </div>
+
+        <canvas id="${cid}-cv" style="display:block; width:100%; height:${alturaCv}; background:rgba(2,6,23,.8); border:1px solid rgba(0,229,255,.18); border-radius:10px;"></canvas>
+
+        <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-top:6px; font-family:'Rajdhani',sans-serif; font-size:12.5px;">
+            <span style="color:#8fd3e8;">x<sub>0</sub> = ${String(X0).replace('.', ',')}</span>
+            
+        </div>
+
+        <div id="${cid}-nota" style="text-align:center; margin-top:8px; padding:7px; border:1px dashed rgba(179,136,255,.5); border-radius:9px; background:rgba(124,77,255,.08);
+             font-family:'Times New Roman',serif; font-size:16px; color:#ffffff; opacity:0; transition:opacity .6s ease;${mostrarNota ? '' : ' display:none;'}">
+            <span style="color:#9fd8ff;">(x<sub>n+1</sub> − x<sub>n</sub>) / Δt</span>
+            &nbsp;<span style="color:#ffeb3b;">→</span>&nbsp;
+            <span style="color:#b388ff;">dx/dt</span>
+            &nbsp;<span style="font-family:'Rajdhani',sans-serif; font-size:12.5px; color:#8fd3e8;">quando Δt → 0</span>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-top:9px; font-family:'Rajdhani',sans-serif; font-size:12.5px; color:#b6d9e6;">
+            <thead>
+                <tr style="color:#7de9ff; letter-spacing:.6px; border-bottom:1px solid rgba(0,229,255,.3);">
+                    <th style="padding:2px 6px; text-align:left;  font-weight:700;">Δt</th>
+                    <th style="padding:2px 6px; text-align:left;  font-weight:700;">recorrência</th>
+                    <th style="padding:2px 6px; text-align:right; font-weight:700;">pontos em t = ${String(TMAX)}</th>
+                </tr>
+            </thead>
+            <tbody>${linhaTabela(0)}${linhaTabela(1)}${linhaTabela(2)}</tbody>
+        </table>
+
+        <div class="ann-bar" style="margin-top:10px;"><i id="${cid}-barra"></i></div>
+    `;
+
+    host.appendChild(card);
+
+    const q  = (s) => card.querySelector(s);
+    const badge  = q('#' + cid + '-badge');
+    const dica   = q('#' + cid + '-dica');
+    const barra  = q('#' + cid + '-barra');
+    const eq     = q('#' + cid + '-eq');
+    const kdt    = q('#' + cid + '-kdt');
+    const nota   = q('#' + cid + '-nota');
+    const rotuloCont = q('#' + cid + '-cont');
+    const cv     = q('#' + cid + '-cv');
+    const ctx    = cv.getContext('2d');
+    const linhas = Array.prototype.slice.call(card.querySelectorAll('tbody tr'));
+
+    // ── Gráfico ────────────────────────────────────────────────────────────
+    let W = 0, H = 0;
+    const ajustarCanvas = () => {
+        const r = cv.getBoundingClientRect();
+        if (r.width < 10) return false;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        cv.width  = Math.max(1, Math.round(r.width  * dpr));
+        cv.height = Math.max(1, Math.round(r.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        W = r.width; H = r.height;
+        return true;
+    };
+    const M = { l: 40, r: 12, t: 14, b: 26 };
+    const px = (t) => M.l + (t / TMAX) * (W - M.l - M.r);
+    const py = (x) => H - M.b - ((x - YMIN) / (YMAX - YMIN)) * (H - M.t - M.b);
+    const curvaContinua = (t) => 1 - (1 - X0) * Math.exp(-K * t);
+
+    let alvoCurva = 0, atCurva = 0;
+    const alvoN = [0, 0, 0], atN = [0, 0, 0];
+    let lacoOn = false;
+
+    const desenhar = () => {
+        if (!W || !H) return;
+        ctx.clearRect(0, 0, W, H);
+
+        ctx.strokeStyle = 'rgba(255,255,255,.06)';
+        ctx.lineWidth = 1;
+        ctx.font = '10px Rajdhani, sans-serif';
+        ctx.fillStyle = 'rgba(148,190,210,.9)';
+        for (let t = 0; t <= TMAX; t += 2) {
+            ctx.beginPath(); ctx.moveTo(px(t), M.t); ctx.lineTo(px(t), H - M.b); ctx.stroke();
+            ctx.textAlign = 'center'; ctx.fillText(String(t), px(t), H - M.b + 13);
+        }
+        ctx.textAlign = 'right';
+        for (let v = 0.5; v <= 1.0001; v += 0.1) {
+            ctx.beginPath(); ctx.moveTo(M.l, py(v)); ctx.lineTo(W - M.r, py(v)); ctx.stroke();
+            ctx.fillText(v.toFixed(1).replace('.', ','), M.l - 5, py(v) + 3);
+        }
+        ctx.strokeStyle = 'rgba(0,229,255,.45)';
+        ctx.beginPath();
+        ctx.moveTo(M.l, M.t); ctx.lineTo(M.l, H - M.b); ctx.lineTo(W - M.r, H - M.b);
+        ctx.stroke();
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(0,229,255,.9)';
+        ctx.fillText('t', W - M.r - 8, H - M.b + 13);
+        ctx.textAlign = 'center';
+        ctx.fillText('x', M.l - 26, M.t + 4);
+
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(255,255,255,.28)';
+        ctx.beginPath(); ctx.moveTo(M.l, py(1)); ctx.lineTo(W - M.r, py(1)); ctx.stroke();
+        ctx.restore();
+
+        for (let i = 0; i < 3; i++) {
+            if (atN[i] <= 0.001) continue;
+            const total = SERIES[i].length;
+            const qtd = Math.max(1, Math.round(total * atN[i]));
+            ctx.strokeStyle = CORES[i] + 'aa';
+            ctx.lineWidth = i === 0 ? 1.8 : 1.2;
+            ctx.beginPath();
+            for (let n = 0; n < qtd; n++) {
+                const X = px(n * NIVEIS[i].dt), Y = py(SERIES[i][n]);
+                if (n === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+            }
+            ctx.stroke();
+            ctx.fillStyle = CORES[i];
+            const raio = total > 200 ? 1.1 : 3.0;
+            for (let n = 0; n < qtd; n++) {
+                ctx.beginPath();
+                ctx.arc(px(n * NIVEIS[i].dt), py(SERIES[i][n]), raio, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (atCurva > 0.001) {
+            ctx.strokeStyle = '#00e5ff';
+            ctx.lineWidth = 2.6;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            const passos = Math.max(2, Math.round(240 * atCurva));
+            for (let s = 0; s <= passos; s++) {
+                const t = (s / passos) * TMAX * atCurva;
+                const X = px(t), Y = py(curvaContinua(t));
+                if (s === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+            }
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(px(0), py(X0), 3.4, 0, Math.PI * 2); ctx.fill();
+    };
+
+    const laco = () => {
+        if (!lacoOn) return;
+        let mudando = false;
+        if (atCurva < alvoCurva) { atCurva = Math.min(alvoCurva, atCurva + 0.018); mudando = true; }
+        for (let i = 0; i < 3; i++) {
+            if (atN[i] < alvoN[i]) { atN[i] = Math.min(alvoN[i], atN[i] + 0.022); mudando = true; }
+        }
+        desenhar();
+        if (mudando) requestAnimationFrame(laco);
+        else lacoOn = false;
+    };
+    const acordar = () => { if (!lacoOn) { lacoOn = true; requestAnimationFrame(laco); } };
+
+    const realcar = (i, on) => {
+        const tr = linhas[i];
+        if (!tr) return;
+        tr.style.background = on ? 'rgba(0,229,255,.12)' : 'transparent';
+        tr.style.color = on ? '#ffffff' : '#b6d9e6';
+        tr.style.boxShadow = on ? 'inset 3px 0 0 ' + CORES[i] : 'none';
+    };
+    const progresso = (p) => { barra.style.width = p + '%'; };
+
+    const redimensionar = () => { ajustarCanvas(); desenhar(); };
+    window.addEventListener('resize', redimensionar);
+
+    // ── Controlador ────────────────────────────────────────────────────────
+    return {
+        card: card,
+
+        // ativa os primeiros `qtd` níveis de Δt (a curva contínua é controlada à parte)
+        revelar: function (qtd) {
+            const n = Math.max(0, Math.min(3, qtd | 0));
+            ajustarCanvas();
+            card.style.opacity = '1';
+            if (eq) eq.style.opacity = '1';
+            for (let i = 0; i < 3; i++) {
+                alvoN[i] = (i < n) ? 1 : 0;
+                realcar(i, i < n);
+            }
+            if (n > 0) {
+                const ult = n - 1;
+                if (kdt) kdt.textContent = 'k · Δt = ' + NIVEIS[ult].kdt;
+                dica.textContent = NIVEIS[ult].tag;
+                badge.textContent = etapas ? ('ETAPA ' + (n + 1) + ' / 5') : ('Δt = ' + NIVEIS[ult].txt);
+            } else {
+                dica.textContent = 'modelo contínuo';
+                badge.textContent = etapas ? 'ETAPA 1 / 5' : 'modelo contínuo';
+            }
+            progresso(n === 0 ? 18 : 18 + n * 24);
+            acordar();
+        },
+
+        // mostra/oculta a curva do modelo contínuo e a sua legenda
+        setCurva: function (v) {
+            alvoCurva = v ? 1 : 0;
+            if (rotuloCont) rotuloCont.style.opacity = v ? '1' : '0';
+            acordar();
+        },
+
+        setNota: function (v) { nota.style.opacity = v ? '1' : '0'; },
+        setProgresso: progresso,
+        redimensionar: redimensionar,
+
+        // desliga os ouvintes mas mantém o cartão visível (quadro negro)
+        parar: function () {
+            lacoOn = false;
+            window.removeEventListener('resize', redimensionar);
+        },
+
+        destruir: function () {
+            lacoOn = false;
+            window.removeEventListener('resize', redimensionar);
+            if (card.parentNode) card.parentNode.removeChild(card);
+        }
+    };
+}
+
+// ==========================================================================
+//  PASSAGEM DO TEMPO DISCRETO PARA O CONTÍNUO — sequência no laboratório
+//  (executada após acertar o Desafio 3 e antes do quadro negro)
+// ==========================================================================
+const transicaoDeltaT = [
+    { text: "A equação de diferença x_n+1 = x_n + k(1 - x_n) é um modelo que fornece as iterações. Cada iteração representa um avanço no tempo.",
+      voice: "A equação de diferença x n mais um é igual a x n mais k vezes um menos x n, é um modelo que fornece as iterações. Cada iteração representa um avanço no tempo.",
+      eq: 'base' },
+    { text: "Avançamos no tempo de forma discreta. Vamos chamar esse avanço de Δt e incluí-lo na equação de diferença.",
+      voice: "Avançamos no tempo de forma discreta. Vamos chamar esse avanço de delta t e incluí-lo na equação de diferença.",
+      eq: 'dt' },
+    { text: "Assim teremos a nova equação de diferença x_n+1 = x_n + Δt . k (1 - x_n)",
+      voice: "Assim teremos a nova equação de diferença x n mais um igual a x n mais delta t vezes k vezes um menos x n." },
+    { text: "Se considerarmos k = 0,6 e Δt = 1 temos a mesma equação de diferença dos gráficos anteriores : x_n+1 = x_n + 0,6 (1 - x_n)",
+      voice: "Se considerarmos k igual a zero vírgula seis e delta t igual a um, temos a mesma equação de diferença dos gráficos anteriores.",
+      eq: 'k' },
+    { text: "Com Δt = 1 os saltos são grandes. Observe no gráfico a curva para este intervalo de tempo iniciando com a concentração x_0 = 0,5",
+      voice: "Com delta t igual a um os saltos são grandes. Observe no gráfico a curva para este intervalo de tempo iniciando com a concentração x zero igual a zero vírgula cinco.",
+      delta: 1 },
+    { text: "Porém, escolhendo um Δt menor, diminuímos o intervalo de tempo entre cada iteração.",
+      voice: "Porém, escolhendo um delta t menor, diminuímos o intervalo de tempo entre cada iteração." },
+    { text: "Se considerarmos que Δt = 1 é o intervalo de 1 ano, escolhendo Δt = 0,1 teremos um intervalo de 36,5 dias.",
+      voice: "Se considerarmos que delta t igual a um é o intervalo de um ano, escolhendo delta t igual a zero vírgula um teremos um intervalo de 36,5 dias",
+      delta: 2 },
+       { text: "Observe no gráfico a curva na cor laranja para esta iteração.",
+      voice: "Observe no gráfico a curva... na cor laranja ... para esta iteração.",
+      delta: 2 },
+      
+    { text: "Agora escolhamos Δt = 0,01 que representa um intervalo de aproximadamente 3,65 dias e observe no gráfico a curva em azul.",
+      voice: "Agora escolhamos delta t igual a zero vírgula zero um que representa um intervalo de aproximadamente 3,65 dias e observe novamente no gráfico a curva na cor azul.",
+      delta: 3, curva: true },
+    { text: "Repare que k = 0,6 não mudou. Quem diminuiu foi o passo Δt: no mesmo intervalo de tempo agora cabem muitas iterações.",
+      voice: "Repare que k igual a zero vírgula seis não mudou. Quem diminuiu foi o passo delta t: no mesmo intervalo de tempo agora cabem muitas iterações." },    
+    { text: "Agora, vamos ao quadro! ",
+      voice: "Agora, vamos ao quadro! " },
+     { text: "Veremos como obter uma função que calcule a concentração de CO₂ nos oceanos em qualquer instante, sem precisar de iterações.",
+      voice: "Veremos como obter uma função que calcule a concentração de CO₂ nos oceanos em qualquer instante, sem precisar de iterações."}
+];
+
+let currentTransicaoStep = 0;
+let deltaAnimCtrl = null;
+let eqCtrl = null;
+
+// Mostra a equação de_difference no lugar do gráfico (passos 0 a 3)
+function prepararPainelEquacao() {
+    if (eqCtrl) return;
+    const host = document.getElementById('delta-container');
+    document.getElementById('canvas-grafico').style.display = 'none';
+    setCabecalhoDireito('Do tempo discreto para o tempo contínuo');
+    host.innerHTML = '';
+    host.style.display = 'flex';
+    eqCtrl = criarPainelEquacao(host, {});
+}
+
+function iniciarTransicaoDeltaT() {
+    isInteractivePhase2 = false;
+
+    // volta para a tela do laboratório
+    document.getElementById('lab-hud').classList.add('active');
+    document.getElementById('tabela-container').style.display = 'none';
+    document.getElementById('container-controles').style.display = 'none';
+    document.getElementById('formula-container').style.display = 'none';
+
+    // o painel do oceano fica ocioso nesta passagem: o gráfico usa a largura toda
+    document.getElementById('lab-hud').classList.add('foco-grafico');
+
+    // a passagem já começa na equação de diferença: o gráfico anterior sai de cena
+    document.getElementById('canvas-grafico').style.display = 'none';
+    const host = document.getElementById('delta-container');
+    host.style.display = 'flex';
+    host.innerHTML = '';
+
+    if (deltaAnimCtrl) { deltaAnimCtrl.destruir(); deltaAnimCtrl = null; }
+    if (eqCtrl) { eqCtrl = null; }
+
+    currentTransicaoStep = 0;
+    runTransicaoDeltaT();
+}
+
+// Substitui o gráfico anterior pela animação Δt, no espaço do layout do gráfico.
+// A equação de diferença fica somente no título do painel (com k = 0,6),
+// e a curva do modelo contínuo só aparece no último passo.
+function prepararGraficoDelta() {
+    if (deltaAnimCtrl) return;
+    const host = document.getElementById('delta-container');
+    document.getElementById('canvas-grafico').style.display = 'none';
+    setCabecalhoDireito('Do tempo discreto para o tempo contínuo:<br><span class="formula">x<sub>n+1</sub> = x<sub>n</sub> + 0,6 · Δt · (1 - x<sub>n</sub>) &nbsp;</span>');
+    host.innerHTML = '';
+    host.style.display = 'flex';
+    deltaAnimCtrl = criarAnimacaoDeltaT(host, {
+        etapas: false,
+        nota: false,
+        equacao: false,
+        largura: '1120px',
+        altura: 'min(340px, 34vh)'
+    });
+}
+
+function runTransicaoDeltaT() {
+    const labTextEl = document.getElementById('lab-dialogue-text');
+    const btn = document.getElementById('challenge-trigger-btn');
+
+    btn.style.display = 'none';
+    btn.onclick = null;   // evita que o handler do passo anterior responda
+    const step = transicaoDeltaT[currentTransicaoStep];
+
+    // ── O que muda NA TELA é aplicado no início da fala, não no fim ──
+    // Assim o aluno já vê a equação (ou o gráfico) enquanto GAIA fala sobre ele.
+
+    // 1) equação no lugar do gráfico: aparece, recebe o Δt e troca k por 0,6
+    if (step.eq) {
+        prepararPainelEquacao();
+        eqCtrl.mostrar();
+        if (step.eq === 'dt') eqCtrl.inserirDt();
+        else if (step.eq === 'k') eqCtrl.substituirK();
+    }
+
+    // 2) ao entrar o gráfico de Δt = 1, a equação sai de cena
+    if (step.delta) {
+        if (eqCtrl) { eqCtrl.destruir(); eqCtrl = null; }
+        prepararGraficoDelta();
+        deltaAnimCtrl.revelar(step.delta);
+    }
+
+    // a curva do modelo contínuo só entra no último passo (Δt = 0,01),
+    // para o aluno perceber a aproximação
+    if (step.curva && deltaAnimCtrl) deltaAnimCtrl.setCurva(true);
+
+    typeWriter(step.text, 0, labTextEl, 'lab-waves', () => {
+        if (currentTransicaoStep < transicaoDeltaT.length - 1) {
+            btn.innerText = 'Continuar >>';
+            btn.style.display = 'block';
+            btn.onclick = () => {
+                playBeep();
+                window.speechSynthesis.cancel();
+                currentTransicaoStep++;
+                runTransicaoDeltaT();
+            };
+        } else {
+            // último passo: botão CONTINUAR abre o quadro negro
+            btn.innerText = 'CONTINUAR';
+            btn.style.display = 'block';
+            btn.style.background = 'rgba(0, 229, 255, 0.22)';
+            btn.onclick = () => {
+                playBeep();
+                window.speechSynthesis.cancel();
+                abrirQuadroNegroFinal();
+            };
+        }
+    }, step.voice);
+}
+
+// Abre o quadro negro exatamente como o programa já fazia
+function abrirQuadroNegroFinal() {
+    if (deltaAnimCtrl) { deltaAnimCtrl.destruir(); deltaAnimCtrl = null; }
+    if (eqCtrl) { eqCtrl.destruir(); eqCtrl = null; }
+    const host = document.getElementById('delta-container');
+    host.style.display = 'none';
+    host.innerHTML = '';
+
+    // devolve o painel do oceano e o layout de duas colunas
+    document.getElementById('lab-hud').classList.remove('foco-grafico');
+
+    document.getElementById('lab-dialogue-text').innerHTML = '';
+    document.getElementById('challenge-trigger-btn').style.background = '';
+    document.getElementById('canvas-grafico').style.display = 'block';
+
+    // cabeçalhos do modelo em tempo contínuo
+    document.getElementById('panel-esq-header').innerHTML = 'Simulador Atmosfera e Oceano';
+    setCabecalhoDireito('Modelo em tempo contínuo:<br><span class="formula">x(t) = 1 &minus; (1 &minus; x<sub>0</sub>)e<sup>&minus;kt</sup></span>');
+
+    startMathBoardSequence(edoSteps, () => {
+        // Ao voltar do quadro: simulador oceano + controles à esquerda,
+        // gráfico de x(t) à direita. É a fase final do programa.
+        prepararLaboratorioTempoContinuo();
+    }, { download: true });   // habilita "BAIXAR O TEXTO EM PDF" no fim
+}
+
+// ==========================================================================
+//  FASE FINAL — MODELO EM TEMPO CONTÍNUO (interativo)
+//  ESQUERDA: simulador atmosfera/oceano + controles de x_0 e k
+//  DIREITA : gráfico de  x(t) = 1 - (1 - x_0)e^(-kt)
+//  O programa termina aqui (o último desafio será criado depois).
+// ==========================================================================
+const TMAX_CONT = 10;
+let modoContinuo = false;
+let loopContAtivo = false;
+
+// Concentração mostrada no oceano: no modo contínuo ela evolui no tempo,
+// fora dele é a concentração instantânea (x_0) dos primeiros momentos.
+function concentracaoAtual() {
+    return modoContinuo ? simState.xAgora : simState.c;
+}
+
+// ---------- GRÁFICO DO MODELO EM TEMPO CONTÍNUO ----------
+function renderGraficoContinuo() {
+    const canvas = document.getElementById('canvas-grafico');
+    if (!canvas) return;
+    const r = canvas.getBoundingClientRect();
+    if (r.width < 40 || r.height < 40) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const wPx = Math.round(r.width * dpr), hPx = Math.round(r.height * dpr);
+    if (canvas.width !== wPx || canvas.height !== hPx) {
+        canvas.width = wPx;
+        canvas.height = hPx;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const W = r.width, H = r.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const m = { l: 56, r: 20, t: 22, b: 44 };
+    const gw = W - m.l - m.r, gh = H - m.t - m.b;
+    const X0 = simState.c, K = simState.k;
+    const px = (t) => m.l + (t / TMAX_CONT) * gw;
+    const py = (v) => m.t + gh - (v / 2) * gh;
+    const solucao = (t) => 1 - (1 - X0) * Math.exp(-K * t);
+
+    // grade
+    ctx.lineWidth = 1;
+    ctx.font = '11px Rajdhani, sans-serif';
+    for (let t = 0; t <= TMAX_CONT; t += 1) {
+        ctx.strokeStyle = 'rgba(255,255,255,.06)';
+        ctx.beginPath(); ctx.moveTo(px(t), m.t); ctx.lineTo(px(t), m.t + gh); ctx.stroke();
+        ctx.fillStyle = 'rgba(148,190,210,.9)';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(t), px(t), m.t + gh + 16);
+    }
+    ctx.textAlign = 'right';
+    for (let v = 0; v <= 2.001; v += 0.5) {
+        ctx.strokeStyle = 'rgba(255,255,255,.06)';
+        ctx.beginPath(); ctx.moveTo(m.l, py(v)); ctx.lineTo(m.l + gw, py(v)); ctx.stroke();
+        ctx.fillStyle = 'rgba(148,190,210,.9)';
+        ctx.fillText(v.toFixed(1).replace('.', ','), m.l - 7, py(v) + 4);
+    }
+
+    // eixos
+    ctx.strokeStyle = 'rgba(0,229,255,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + gh); ctx.lineTo(m.l + gw, m.t + gh);
+    ctx.stroke();
+
+    // linha de equilíbrio
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(m.l, py(1)); ctx.lineTo(m.l + gw, py(1)); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,.6)';
+    ctx.font = '11px Rajdhani, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('x = 1  (equilíbrio)', m.l + 6, py(1) - 6);
+
+    // curva x(t) = 1 - (1 - x0)e^(-kt)
+    // Mesma convenção dos demais gráficos: ciano quando há absorção (x0 < 1)
+    // e vermelho quando a concentração inicial passa de 1 (emissão de CO₂).
+    const curvaEmite = X0 >= 1;
+    const curvaCor = curvaEmite ? '#ff073a' : '#00e5ff';
+    const curvaBrilho = curvaEmite ? 'rgba(255,7,58,.55)' : 'rgba(0,229,255,.55)';
+    const passos = 240;
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(solucao(0)));
+    for (let i = 1; i <= passos; i++) {
+        const t = (i / passos) * TMAX_CONT;
+        ctx.lineTo(px(t), py(solucao(t)));
+    }
+    ctx.strokeStyle = curvaCor;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = curvaBrilho;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // aviso de emissão, no mesmo espírito do simulador do oceano
+    if (curvaEmite) {
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 11px Rajdhani, sans-serif';
+        ctx.textAlign = 'center';
+        }
+
+    // condição inicial
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(px(0), py(X0), 6, 0, Math.PI * 2); ctx.fill();
+    ctx.font = 'bold 12px Rajdhani, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('x₀ = ' + X0.toFixed(2).replace('.', ','), px(0) + 10, py(X0) - 8);
+
+    // marcador do instante atual
+    const tAt = Math.min(simState.t, TMAX_CONT);
+    const vAt = solucao(tAt);
+    ctx.strokeStyle = 'rgba(255,235,59,.5)';
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(vAt)); ctx.lineTo(px(tAt), py(vAt)); ctx.lineTo(px(tAt), m.t + gh);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ffeb3b';
+    ctx.beginPath(); ctx.arc(px(tAt), py(vAt), 6, 0, Math.PI * 2); ctx.fill();
+    ctx.font = 'bold 12px Rajdhani, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ffeb3b';
+    ctx.fillText('t = ' + tAt.toFixed(1), px(tAt) - 9, py(vAt) - 9);
+
+    // títulos dos eixos
+    ctx.font = '13px Orbitron, sans-serif';
+    ctx.fillStyle = '#00e5ff';
+    ctx.textAlign = 'center';
+    ctx.fillText('tempo (t)', m.l + gw / 2, H - 8);
+    ctx.save();
+    ctx.translate(14, m.t + gh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Concentração de CO₂ (x)', 0, 0);
+    ctx.restore();
+
+    // legenda dos parâmetros
+    ctx.font = '12px Rajdhani, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#7de9ff';
+    ctx.fillText('x₀ = ' + X0.toFixed(2).replace('.', ',') + '   ·   k = ' + K.toFixed(2).replace('.', ','), m.l + 6, m.t + 14);
+}
+
+// ---------- ANIMAÇÃO DO TEMPO (oceano + gráfico juntos) ----------
+function loopTempoContinuo() {
+    if (!modoContinuo) { loopContAtivo = false; return; }
+    loopContAtivo = true;
+    if (simState.t < TMAX_CONT * 1.02) {
+        simState.t += 0.014;
+        simState.xAgora = 1 - (1 - simState.c) * Math.exp(-simState.k * simState.t);
+    }
+    renderGraficoContinuo();
+    requestAnimationFrame(loopTempoContinuo);
+}
+
+// Reinicia a evolução temporal (chamado quando o aluno mexe nos controles)
+function reiniciarTempoContinuo() {
+    simState.t = 0;
+    simState.xAgora = simState.c;
+    renderGraficoContinuo();
+}
+
+// ---------- MONTAGEM DA FASE FINAL ----------
+function prepararLaboratorioTempoContinuo() {
+    modoContinuo = true;
+    isInteractivePhase2 = false;
+    simState.t = 0;
+
+    // ---- PAINEL ESQUERDO: simulador oceano + controles ----
+    document.getElementById('tabela-container').style.display = 'none';
+    document.getElementById('formula-container').style.display = 'none';
+    document.getElementById('canvas-oceano').style.display = 'block';
+    document.getElementById('container-controles').style.display = 'flex';
+    document.getElementById('panel-esq-header').innerHTML =
+        'Simulador Atmosfera e Oceano<br><span style="font-size:.78em; opacity:.8;">x₀ = concentração inicial &nbsp;·&nbsp; k = parâmetro de transferência</span>';
+
+    // ---- PAINEL DIREITO: gráfico do modelo contínuo ----
+    const host = document.getElementById('delta-container');
+    host.style.display = 'none';
+    host.innerHTML = '';
+    document.getElementById('canvas-grafico').style.display = 'block';
+    document.getElementById('panel-dir-header').innerHTML =
+        'Modelo em tempo contínuo:<br><span class="formula">x(t) = 1 &minus; (1 &minus; x<sub>0</sub>)e<sup>&minus;kt</sup></span>';
+
+    // ---- valores do modelo (iguais aos da EDO) e rótulo do controle ----
+    simState.c = 0.5;
+    simState.k = 0.6;
+    const slC = document.getElementById('slider-c');
+    const slK = document.getElementById('slider-k');
+    if (slC) { slC.value = 0.5; }
+    if (slK) { slK.value = 0.6; }
+    const valC = document.getElementById('val-c');
+    const valK = document.getElementById('val-k');
+    if (valC) valC.textContent = '0.50';
+    if (valK) valK.textContent = '0.60';
+    const labelC = document.getElementById('label-c-oce');
+    if (labelC) labelC.innerText = "Concentração inicial de CO₂ (x₀):";
+
+    simState.xAgora = simState.c;
+    adjustCanvasResolution(document.getElementById('canvas-oceano'));
+    requestAnimationFrame(() => {
+        renderGraficoContinuo();
+        if (!loopContAtivo) loopTempoContinuo();
+    });
+
+    // ---- falas de GAIA ----
+    currentFaseContinuaStep = 0;
+    runFaseContinuaDialogue();
+}
+
+// ---------- DIÁLOGO DA FASE FINAL ----------
+const faseContinuaDialogues = [
+    { text: "O gráfico acima mostra a variação da concentração de CO_2 nos oceanos em tempo contínuo.",
+      voice: "O gráfico acima mostra a variação da concentração de C O 2 nos oceanos em tempo contínuo.",
+      btn: "Continuar >>" },
+    { text: "Altere a concentração inicial de CO_2 nos oceanos e o parâmetro k e observe o que ocorre com o passar do tempo.",
+      voice: "Altere a concentração inicial de C O 2 nos oceanos e o parâmetro k e observe o que ocorre com o passar do tempo.",
+      btn: "Continuar >>" },
+    { text: "Estamos no final da missão oceano!",
+      voice: "Estamos no final da missão oceano!",
+      btn: "Continuar >>" }
+];
+
+let currentFaseContinuaStep = 0;
+
+function runFaseContinuaDialogue() {
+    const labTextEl = document.getElementById('lab-dialogue-text');
+    const btn = document.getElementById('challenge-trigger-btn');
+
+    btn.style.display = 'none';
+    const stepData = faseContinuaDialogues[currentFaseContinuaStep];
+
+    typeWriter(stepData.text, 0, labTextEl, 'lab-waves', () => {
+        btn.innerText = stepData.btn;
+        btn.style.display = 'block';
+
+        btn.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            if (currentFaseContinuaStep < faseContinuaDialogues.length - 1) {
+                currentFaseContinuaStep++;
+                runFaseContinuaDialogue();
+            } else {
+                // volta ao laboratório do início da missão e apresenta o
+                // problema antes do desafio final
+                abrirEncerramentoMissao();
+            }
+        };
+    }, stepData.voice);
+}
+
+// ==========================================================================
+//  ENCERRAMENTO DA MISSÃO OCEANO
+//  Ao acionar "Responder Desafio" o jogo retorna à tela de abertura da
+//  missão oceano (missao_oceano.html): Terra ao fundo, HUD de voo e o
+//  painel holográfico com as falas da GAIA. Só depois o desafio final.
+// ==========================================================================
+const encerramentoDialogues = [
+    {
+        text: "Em 2030, a concentração média de CO_2 nos oceanos está em torno de 0,5. Isso significa que eles ainda possuem capacidade de absorver CO_2 da atmosfera, mas será que devemos continuar contando com essa capacidade?",
+        voice: "Em 2030, a concentração média de C O 2 nos oceanos está em torno de 0,5. Isso significa que eles ainda possuem capacidade de absorver C O 2 da atmosfera, mas será que devemos continuar contando com essa capacidade?",
+        btn: "Avançar >>"
+    },
+    {
+        text: "Precisamos lembrar que a absorção de CO_2 provoca a acidificação dos oceanos, reduzindo o pH da água e ameaçando os corais e diversas formas de vida marinha.",
+        voice: "Precisamos lembrar que a absorção de C O 2 provoca a acidificação dos oceanos, reduzindo o p H da água e ameaçando os corais e diversas formas de vida marinha.",
+        btn: "Avançar >>"
+    },
+    {
+        text: "A decisão é sua! Você vai priorizar a absorção de CO_2 pelos oceanos ou buscar alternativas para proteger os ecossistemas marinhos? O futuro dos oceanos está em suas mãos!",
+        voice: "A decisão é sua! Você vai priorizar a absorção de C O 2 pelos oceanos ou buscar alternativas para proteger os ecossistemas marinhos? O futuro dos oceanos está em suas mãos!",
+        btn: "Responder Desafio >>"
+    }
+];
+
+let currentEncerramentoStep = 0;
+
+// Volta à cena de abertura da missão: some o laboratório e aparece o
+// HUD de voo sobre a Terra, com o painel holográfico da GAIA.
+function abrirEncerramentoMissao() {
+    if (deltaAnimCtrl) { deltaAnimCtrl.destruir(); deltaAnimCtrl = null; }
+    if (eqCtrl) { eqCtrl = null; }
+
+    modoContinuo = false;
+    loopContAtivo = false;
+
+    const labHud = document.getElementById('lab-hud');
+    labHud.classList.remove('active');
+    const mathBoard = document.getElementById('math-board');
+    if (mathBoard) mathBoard.style.display = 'none';
+
+    document.getElementById('dialogue-text').innerHTML = '';
+    document.getElementById('hologram-panel').classList.add('active');
+    document.getElementById('ui-layer-encerramento').classList.add('ativo');
+
+    // a Terra (Three.js) já anima continuamente: só o laboratório estava na frente
+    currentEncerramentoStep = 0;
+    runEncerramentoDialogue();
+
+    // o HUD de voo surge junto com a primeira fala.
+    // setTimeout (e não requestAnimationFrame) para não depender do loop de
+    // animação, que o navegador suspende quando a aba está em segundo plano.
+    const fh = document.getElementById('flight-hud');
+    fh.style.display = 'block';
+    setTimeout(() => { fh.style.opacity = '1'; }, 60);
+}
+
+function runEncerramentoDialogue() {
+    const textoEl = document.getElementById('dialogue-text');
+    const btn = document.getElementById('next-btn');
+
+    btn.style.display = 'none';
+    btn.onclick = null;
+    const step = encerramentoDialogues[currentEncerramentoStep];
+
+    typeWriter(step.text, 0, textoEl, 'waves', () => {
+        btn.innerText = step.btn;
+        btn.style.display = 'block';
+        btn.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            if (currentEncerramentoStep < encerramentoDialogues.length - 1) {
+                currentEncerramentoStep++;
+                runEncerramentoDialogue();
+            } else {
+                fecharEncerramentoMissao();
+                abrirUltimoDesafio();
+            }
+        };
+    }, step.voice);
+}
+
+// Esconde a cena de abertura antes de abrir o desafio final.
+function fecharEncerramentoMissao() {
+    const fh = document.getElementById('flight-hud');
+    fh.style.opacity = '0';
+    document.getElementById('hologram-panel').classList.remove('active');
+    document.getElementById('ui-layer-encerramento').classList.remove('ativo');
+    setTimeout(() => { fh.style.display = 'none'; }, 800);
+}
+
+// ==========================================================================
+//  DOWNLOAD DO TEXTO APRESENTADO NO QUADRO NEGRO
+//  Gera um PDF com o conteúdo dos passos, preservando fórmulas em verde
+//  (como no quadro) e subscritos/sobrescritos em notação simples.
+//
+//  A fonte padrão do PDF (Helvetica) usa a codificação WinAnsi (Latin-1).
+//  Caracteres gregos e setas NÃO existem nessa tabela e sairiam como lixo,
+//  então todo o texto passa por sanearTextoPdf() antes de ser escrito.
+// ==========================================================================
+
+// Sequências que precisam ser tratadas antes dos caracteres soltos,
+// para não colar palavras ("Δt" viraria "Deltat").
+const PDF_SEQUENCIAS = [
+    ['Δt', 'Delta t'],
+    ['δt', 'delta t'],
+    ['Δt→0', 'Delta t -> 0']
+];
+
+// Trocas para caracteres equivalentes que o PDF consegue imprimir.
+const PDF_SUBSTITUICOES = {
+    'Δ': 'Delta',       // Δ  (delta)
+    'δ': 'delta',       // δ
+    'α': 'alfa',        // α
+    'β': 'beta',        // β
+    'γ': 'gama',        // γ
+    'ε': 'épsilon',     // ε
+    'θ': 'teta',        // θ
+    'λ': 'lambda',      // λ
+    'μ': 'mi',          // μ
+    'π': 'pi',          // π
+    'σ': 'sigma',       // σ
+    'φ': 'fi',          // φ
+    'ω': 'ômega',       // ω
+    '→': '->',          // →
+    '←': '<-',          // ←
+    '⇒': '=>',          // ⇒
+    '−': '-',           // −  (menos tipográfico; não é o hífen U+002D)
+    '–': '-',           // –
+    '—': '-',           // —
+    '≥': '>=',          // ≥
+    '≤': '<=',          // ≤
+    '≈': '~',           // ≈
+    '≠': '!=',          // ≠
+    '×': 'x',           // ×
+    '÷': '/',           // ÷
+    '·': '*',           // ·
+    '°': '°',           // ° (este existe em Latin-1; mantido por segurança)
+    '∞': 'infinito',    // ∞
+    '∫': 'integral',    // ∫
+    '∑': 'soma',        // ∑
+    '√': 'raiz',        // √
+    '‘': "'", '’': "'", // aspas curvas
+    '“': '"', '”': '"',
+    '…': '...',         // …
+    '\u00A0': ' '       // espaço não separável
+};
+
+// Reescreve o texto usando apenas caracteres que a fonte do PDF possui.
+function sanearTextoPdf(texto) {
+    let s = String(texto);
+
+    // 1) sequências com espaço implícito (Δt -> "Delta t")
+    PDF_SEQUENCIAS.forEach(function (par) {
+        s = s.split(par[0]).join(par[1]);
+    });
+
+    // 2) caracteres soltos fora do Latin-1
+    // repete até restarem só caracteres imprimíveis (cada troca pode gerar outro fora da faixa)
+    for (let volta = 0; volta < 4; volta++) {
+        let mudou = false;
+        s = s.split('').map(function (c) {
+            if (c.charCodeAt(0) <= 255) return c;
+            mudou = true;
+            return Object.prototype.hasOwnProperty.call(PDF_SUBSTITUICOES, c)
+                ? PDF_SUBSTITUICOES[c]
+                : '';   // sem equivalente: remove em vez de gerar lixo
+        }).join('');
+        if (!mudou) break;
+    }
+
+    // 3) limpa espaços duplos deixados pelas remoções
+    return s.replace(/ {2,}/g, ' ').replace(/ +([,.;:)])/g, '$1').trim();
+}
+
+// Converte um elemento do quadro em texto "de papel":
+// <sub>n</sub> vira _n e <sup>x</sup> vira ^x, para ficar legível no PDF.
+function textoParaPdf(el) {
+    let saida = '';
+    el.childNodes.forEach(no => {
+        if (no.nodeType === 3) {                       // texto simples
+            saida += no.nodeValue;
+        } else if (no.nodeType === 1) {                // elemento
+            const tag = no.tagName;
+            if (tag === 'SUB') {
+                saida += '_' + no.textContent;
+            } else if (tag === 'SUP') {
+                saida += '^' + no.textContent;
+            } else if (tag === 'B' || tag === 'STRONG') {
+                saida += no.textContent;
+            } else if (no.tagName === 'svg' || tag === 'CANVAS') {
+                saida += '';                           // gráficos não vão para o PDF
+            } else {
+                saida += textoParaPdf(no);
+            }
+        }
+    });
+    return sanearTextoPdf(saida.replace(/\s+/g, ' ').trim());
+}
+
+function gerarPdfApresentacao(stepsArray) {
+    const linhas = [];   // { texto, formula }
+
+    // percorre o que está realmente na tela
+    const passos = document.querySelectorAll('#math-steps > div');
+    passos.forEach(div => {
+        if (div.querySelector('svg, canvas')) return;   // ignora animações/gráficos
+        const txt = textoParaPdf(div);
+        if (txt) linhas.push({ texto: txt, formula: div.dataset.formula === '1' });
+    });
+
+    // se nada foi encontrado na tela, usa o array original
+    if (!linhas.length) {
+        stepsArray.forEach(s => {
+            if (!s.text) return;
+            linhas.push({ texto: sanearTextoPdf(s.text.replace(/\*\*/g, '')), formula: !!s.isFormula });
+        });
+    }
+
+    if (!linhas.length) {
+        alert('Não há texto para exportar.');
+        return;
+    }
+
+    // ---------- jsPDF (CDN) ----------
+    if (window.jspdf && window.jspdf.jsPDF) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const margem = 18;
+        const larguraUtil = 210 - margem * 2;
+        let y = margem;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        doc.setTextColor(20);
+        doc.text('Resolução do Modelo — Equação Diferencial Ordinária', margem, y);
+        y += 7;
+        doc.setDrawColor(0, 140, 190);
+        doc.setLineWidth(0.5);
+        doc.line(margem, y, 210 - margem, y);
+        y += 9;
+
+        doc.setFontSize(10.5);
+        linhas.forEach(item => {
+            const texto = item.texto;
+            // quebra o texto respeitando as quebras já existentes na linha
+            const pedacos = texto.split(/(?<=\.)\s+/);
+            pedacos.forEach(pedaco => {
+                const linhasCabem = doc.splitTextToSize(pedaco, larguraUtil);
+                if (y > 275) { doc.addPage(); y = margem; }
+                doc.setTextColor(item.formula ? 0 : 40, item.formula ? 170 : 40, item.formula ? 60 : 40);
+                doc.setFont('helvetica', item.formula ? 'bold' : 'normal');
+                doc.text(linhasCabem, margem, y);
+                y += linhasCabem.length * 5.4 + 2.2;
+            });
+        });
+
+        doc.save('resolucao-modelo-edo.pdf');
+        return;
+    }
+
+    // ---------- reserva: impressão do navegador ----------
+    alert('Não foi possível carregar o gerador de PDF. Abrindo a janela de impressão — escolha "Salvar como PDF".');
+    window.print();
+}
+
+// Converte o texto da resolução (com HTML e subscritos) em fala.
+// As mensagens não são exibidas: apenas a GAIA as diz.
+function dfTextoParaFala(html) {
+    let t = String(html || '');
+
+    // subscritos e sobrescritos são lidos com o nome do operador
+    t = t.replace(/<sub>([\s\S]*?)<\/sub>/g, ' subscrito $1 ');
+    t = t.replace(/<sup>([\s\S]*?)<\/sup>/g, ' elevado a $1 ');
+
+    // entidades e notação matemática comum
+    t = t.replace(/&minus;/g, ' menos ')
+         .replace(/&frasl;/g, ' dividido por ')
+         .replace(/&asymp;/g, ' aproximadamente ')
+         .replace(/&rArr;/g, ' implica ')
+         .replace(/&le;/g, ' menor ou igual a ')
+         .replace(/&ge;/g, ' maior ou igual a ')
+         .replace(/&nbsp;/g, ' ')
+         .replace(/&lt;/g, ' menor que ')
+         .replace(/&gt;/g, ' maior que ')
+         .replace(/&amp;/g, ' e ')
+         .replace(/CO_2|CO₂/g, 'C O 2')
+         .replace(/\bpH\b/g, 'p H')
+         .replace(/x_0/g, 'x zero')
+         .replace(/x_n/g, 'x n')
+         .replace(/\s+/g, ' ')
+         .trim();
+
+    // remove qualquer HTML remanescente
+    t = t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return t;
+}
+
+// ==========================================================================
+//  LOUSA DE CÁLCULOS DO DESAFIO FINAL
+//  Mesma identidade e funcionalidades da LOUSA DE CÁLCULOS de
+//  missao_oceano.html: escrever (TEXTO), desenhar (DESENHO) e apagar (APAGAR).
+//  Ao acertar o desafio a lousa é limpa e recebe a resolução.
+// ==========================================================================
+const dfLousa = {
+    canvas: null, ctx: null, texto: null,
+    desenhando: false, modoDesenho: false,
+    ultimoX: 0, ultimoY: 0
+};
+let dfLousaAoRedimensionar = false;   // registra o listener só uma vez
+
+function dfLousaHTML() {
+    return '<div class="df-wb-panel">'
+         +     '<div class="df-wb-header">LOUSA DE CÁLCULOS</div>'
+         +     '<div class="df-wb-wrapper" id="df-wb-wrapper">'
+         +         '<textarea id="df-wb-textarea" placeholder="Utilize este espaço para os seus cálculos do modelo de absorção oceânica..."></textarea>'
+         +         '<canvas id="df-wb-canvas"></canvas>'
+         +         '<div id="df-wb-resultado"></div>'
+         +     '</div>'
+         +     '<div class="df-wb-controls">'
+         +         '<button class="action-btn df-wb-btn" id="df-wb-texto">TEXTO</button>'
+         +         '<button class="action-btn df-wb-btn" id="df-wb-desenho">DESENHO</button>'
+         +         '<button class="action-btn df-wb-btn apagar" id="df-wb-apagar">APAGAR</button>'
+         +     '</div>'
+         + '</div>';
+}
+
+function dfLousaRedimensionar() {
+    const cv = dfLousa.canvas;
+    if (!cv || !dfLousa.ctx) return;
+    cv.width = cv.offsetWidth;
+    cv.height = cv.offsetHeight;
+    dfLousa.ctx.strokeStyle = '#00e5ff';
+    dfLousa.ctx.lineWidth = 2.5;
+    dfLousa.ctx.lineCap = 'round';
+    dfLousa.ctx.lineJoin = 'round';
+}
+
+function dfLousaLimpar() {
+    if (dfLousa.texto) dfLousa.texto.value = '';
+    if (dfLousa.ctx && dfLousa.canvas) {
+        dfLousa.ctx.clearRect(0, 0, dfLousa.canvas.width, dfLousa.canvas.height);
+    }
+}
+
+//_apresenta a resolução na lousa e bloqueia os comandos
+function dfLousaMostrarResolucao(html) {
+    dfLousaLimpar();
+    const res = document.getElementById('df-wb-resultado');
+    if (!res) return;
+    res.innerHTML = html;
+    res.style.display = 'block';
+    if (dfLousa.texto) dfLousa.texto.style.visibility = 'hidden';
+    ['df-wb-texto', 'df-wb-desenho', 'df-wb-apagar'].forEach(function (id) {
+        const b = document.getElementById(id);
+        if (b) b.disabled = true;
+    });
+}
+
+// Guarda o rascunho do aluno (texto + desenho) para que o botão
+// TENTAR DE NOVO não apague a lousa ao redesenhar a tela.
+function dfLousaSalvar() {
+    if (!dfLousa.texto) return null;
+    return {
+        texto: dfLousa.texto.value,
+        desenho: (dfLousa.canvas && dfLousa.canvas.width) ? dfLousa.canvas.toDataURL() : null
+    };
+}
+
+// Repõe o rascunho salvo. Aguarda a remedida do canvas (que o limpa
+// ao redefinir width/height), por isso o atraso de 160 ms.
+function dfLousaRestaurar(estado) {
+    if (!estado) return;
+    setTimeout(function () {
+        if (!dfLousa.texto || !dfLousa.ctx) return;
+        dfLousa.texto.value = estado.texto;
+        if (!estado.desenho) return;
+        const img = new Image();
+        img.onload = function () { dfLousa.ctx.drawImage(img, 0, 0); };
+        img.src = estado.desenho;
+    }, 160);
+}
+
+// Apresenta a resolução na lousa em etapas, com efeito de escrita e
+// fórmulas na cor verde — o mesmo critério da sequência do quadro negro.
+// A observação da resposta correta também é digitada, como as demais linhas.
+// passos: [{ texto, formula, resposta }]
+function dfLousaAnimar(observacao, passos, aoTerminar) {
+    dfLousaLimpar();
+    const res = document.getElementById('df-wb-resultado');
+    if (!res) { if (aoTerminar) aoTerminar(); return; }
+
+    res.style.display = 'block';
+    if (dfLousa.texto) dfLousa.texto.style.visibility = 'hidden';
+    ['df-wb-texto', 'df-wb-desenho', 'df-wb-apagar'].forEach(function (id) {
+        const b = document.getElementById(id);
+        if (b) b.disabled = true;
+    });
+
+    res.innerHTML = '<div class="df-anim" id="df-anim"></div>';
+
+    const lista = [];
+    if (observacao) lista.push({ texto: dfObservacaoParaMarcadores(observacao) });
+    lista.push.apply(lista, passos);
+
+    const palco = document.getElementById('df-anim');
+    let i = 0;
+
+    function proximo() {
+        if (i >= lista.length) {
+            if (aoTerminar) aoTerminar();
+            return;
+        }
+        const p = lista[i++];
+
+        const linha = document.createElement('div');
+        linha.className = 'df-anim-linha'
+            + (p.formula ? ' formula' : '')
+            + (p.resposta ? ' resposta' : '');
+        palco.appendChild(linha);
+        res.scrollTop = res.scrollHeight;
+
+        // voice '' cancela qualquer fala: a GAIA já falou antes da animação
+        typeWriter(p.texto, 0, linha, 'df-waves', function () {
+            res.scrollTop = res.scrollHeight;
+            setTimeout(proximo, 700);
+        }, '');
+    }
+
+    setTimeout(proximo, 350);
+}
+
+function dfLousaIniciar() {
+    dfLousa.canvas = document.getElementById('df-wb-canvas');
+    dfLousa.texto = document.getElementById('df-wb-textarea');
+    dfLousa.ctx = dfLousa.canvas ? dfLousa.canvas.getContext('2d') : null;
+    if (!dfLousa.canvas || !dfLousa.ctx || !dfLousa.texto) return;
+
+    dfLousa.desenhando = false;
+    dfLousa.modoDesenho = false;
+    dfLousa.canvas.style.pointerEvents = 'none';
+    dfLousa.texto.style.pointerEvents = 'auto';
+    dfLousaRedimensionar();
+
+    const btnTexto = document.getElementById('df-wb-texto');
+    const btnDesenho = document.getElementById('df-wb-desenho');
+    const btnApagar = document.getElementById('df-wb-apagar');
+
+    function pintar(botaoAtivo, outro) {
+        botaoAtivo.style.background = 'rgba(0, 229, 255, 0.4)';
+        botaoAtivo.style.color = '#fff';
+        outro.style.background = 'rgba(0, 229, 255, 0.12)';
+        outro.style.color = '#00e5ff';
+    }
+    pintar(btnTexto, btnDesenho);
+
+    btnTexto.addEventListener('click', function () {
+        playBeep();
+        dfLousa.modoDesenho = false;
+        dfLousa.desenhando = false;
+        dfLousa.canvas.style.pointerEvents = 'none';
+        dfLousa.texto.style.pointerEvents = 'auto';
+        dfLousa.texto.focus();
+        pintar(btnTexto, btnDesenho);
+    });
+
+    btnDesenho.addEventListener('click', function () {
+        playBeep();
+        dfLousa.modoDesenho = true;
+        dfLousa.canvas.style.pointerEvents = 'auto';
+        dfLousa.texto.style.pointerEvents = 'none';
+        pintar(btnDesenho, btnTexto);
+    });
+
+    btnApagar.addEventListener('click', function () {
+        playBeep();
+        dfLousaLimpar();
+    });
+
+    function posicao(e) {
+        const r = dfLousa.canvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    dfLousa.canvas.addEventListener('pointerdown', function (e) {
+        if (!dfLousa.modoDesenho) return;
+        e.preventDefault();
+        dfLousa.desenhando = true;
+        const p = posicao(e);
+        dfLousa.ultimoX = p.x;
+        dfLousa.ultimoY = p.y;
+    });
+
+    dfLousa.canvas.addEventListener('pointermove', function (e) {
+        if (!dfLousa.desenhando || !dfLousa.modoDesenho) return;
+        e.preventDefault();
+        const p = posicao(e);
+        dfLousa.ctx.beginPath();
+        dfLousa.ctx.moveTo(dfLousa.ultimoX, dfLousa.ultimoY);
+        dfLousa.ctx.lineTo(p.x, p.y);
+        dfLousa.ctx.stroke();
+        dfLousa.ultimoX = p.x;
+        dfLousa.ultimoY = p.y;
+    });
+
+    dfLousa.canvas.addEventListener('pointerup', function () { dfLousa.desenhando = false; });
+    dfLousa.canvas.addEventListener('pointerleave', function () { dfLousa.desenhando = false; });
+    dfLousa.canvas.addEventListener('pointercancel', function () { dfLousa.desenhando = false; });
+}
+
+// ==========================================================================
+//  DESAFIO FINAL DA MISSÃO OCEANO — "O LIMITE DOS OCEANOS"
+//  Conforme "PROMPT alteração desafios finais.docx":
+//  4 desafios encadeados — quantidade segura (0,4) -> tempo discreto ->
+//  tempo contínuo -> escolha do parâmetro k. A concentração limite 0,9
+//  é o ponto a partir do qual a vida marinha é prejudicada.
+// ==========================================================================
+const DF = {
+    x0: 0.5,        // concentração inicial de CO₂ nos oceanos
+    limite: 0.9,    // concentração a partir da qual a vida marinha é prejudicada
+    ph0: 8.1,       // pH inicial da água do mar
+    limiarPh: 7.7,  // pH mínimo para os corais sobreviverem
+    queda: 1.0,     // SUPOSIÇÃO do jogo: unidades de pH perdidas por unidade de CO₂ absorvida
+    k: 0.6,         // parâmetro de transferência em 2030
+    meta: 0.8       // unidades de CO₂ que a atmosfera precisa eliminar (encerra a missão)
+};
+
+// quantidade máxima que os oceanos absorvem sem prejudicar a vida marinha
+DF.maxAbsorcao = Math.round((DF.ph0 - DF.limiarPh) / DF.queda * 100) / 100;            // = 0,4
+DF.lnUm = Math.round(-Math.log((1 - DF.limite) / (1 - DF.x0)) * 10000) / 10000;        // = 1,6094
+DF.anosAteLimite = Math.round(DF.lnUm / DF.k * 10000) / 10000;                          // = 2,6824
+
+const num = (v, casas) => v.toFixed(casas).replace('.', ',');
+
+// anos até atingir 0,9 para um dado k  (x(t) = 1 - 0,5 e^(-kt))
+function dfAnosAteLimite(k) {
+    return DF.lnUm / k;
+}
+
+// Sequência da equação de diferença x_{n+1} = x_n + k(1 - x_n)
+function dfSequencia(k, passos) {
+    const linhas = [];
+    let x = DF.x0;
+    for (let n = 0; n <= passos; n++) {
+        const absorvido = x - DF.x0;
+        const ph = DF.ph0 - DF.queda * absorvido;
+        linhas.push({ n, x, absorvido, ph, seguro: ph >= DF.limiarPh });
+        x = x + k * (1 - x);
+    }
+    return linhas;
+}
+
+
+
+// tabela de escolha do 4º desafio: valor de k (0,1 a 0,9) e anos até 0,9
+function dfTabelaKHTML() {
+    let html = '<table class="df-tabela"><thead><tr>' +
+        '<th>escolha</th><th>valor de k</th><th>anos até atingir 0,9</th>' +
+        '</tr></thead><tbody>';
+    for (let i = 1; i <= 9; i++) {
+        const k = i / 10;
+        html += '<tr class="escolhavel" data-k="' + num(k, 1) + '" data-anos="' + num(dfAnosAteLimite(k), 2) + '" data-ok="' + (k === 0.9 ? '1' : '0') + '">' +
+            '<td>&nbsp;</td>' +
+            '<td>k = ' + num(k, 1) + '</td>' +
+            '<td>' + num(dfAnosAteLimite(k), 2) + ' anos</td>' +
+        '</tr>';
+    }
+    return html + '</tbody></table>';
+}
+
+// Converte a observação da resposta correta (escrita em HTML) para os
+// marcadores do typeWriter (**negrito**, _sub, ^{sup}), de modo que ela
+// seja digitada na lousa como as demais linhas da resolução.
+function dfObservacaoParaMarcadores(html) {
+    return String(html || '')
+        // marcações do typeWriter, preservando o negrito da observação
+        .replace(/<(strong|b)>([\s\S]*?)<\/\1>/gi, '**$2**')
+        .replace(/<em>([\s\S]*?)<\/em>/gi, '$1')
+        .replace(/<sub>([\s\S]*?)<\/sub>/gi, '_$1')
+        .replace(/<sup>([\s\S]*?)<\/sup>/gi, '^{$1}')
+        .replace(/<[^>]+>/g, '')                       // remove o resto das tags
+        .replace(/&minus;|&#8722;/g, '−')
+        .replace(/&asymp;/g, '≈')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&[a-z]+;|&#\d+;/g, ' ')              // resto das entidades
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Passos da resolução do 1º desafio (quantidade segura de CO₂).
+function dfPassosQuantidade() {
+    return [
+        { formula: true, texto: '8,1 − 7,7 = 0,4' },
+        { formula: true, resposta: true,
+          texto: 'Logo, os oceanos podem absorver no máximo **0,4** de concentração de CO₂ sem prejudicar a vida marinha.' }
+    ];
+}
+
+// Passos da resolução do 2º desafio (equação de diferença), animados na lousa.
+function dfPassosDiscreto() {
+    return [
+        { formula: true, texto: 'x_{n+1} = x_n + k (1 – x_n)  ⇒  x_{n+1} = 0,5 + 0,6 (1 – 0,5)' },
+        { texto: 'Para n = 0:' },
+        { formula: true, texto: 'x_1 = 0,5 + 0,6 · (1 – 0,5)  ⇒  x_1 = 0,8' },
+        { texto: 'Para n = 1:' },
+        { formula: true, texto: 'x_2 = 0,8 + 0,6 · (1 – 0,8)  ⇒  x_2 = 0,92' },
+        { formula: true, resposta: true, texto: 'Logo, em até 2 anos os oceanos já atingiram 0,92' }
+    ];
+}
+
+// Passos da resolução do 3º desafio (modelo em tempo contínuo).
+// Mesmo formato do 2º: cada linha traz a própria implicação (⇒)
+// e a última é a resposta.
+function dfPassosContinuo() {
+    return [
+        { formula: true, texto: 'x(t) = 1 − (1 − x_{0})e^{−kt}  ⇒  0,9 = 1 − 0,5·e^{−0,6t}' },
+        { formula: true, texto: '0,5·e^{−0,6t} = 1 − 0,9  ⇒  0,5·e^{−0,6t} = 0,1' },
+        { formula: true, texto: '0,5·e^{−0,6t} = 0,1  ⇒  e^{−0,6t} = 0,1 / 0,5' },
+        { formula: true, texto: 'e^{−0,6t} = 0,2  ⇒  ln(e^{−0,6t}) = ln(0,2)' },
+        { formula: true, texto: '−0,6t ≈ −1,6094  ⇒  t ≈ 1,6094 / 0,6' },
+        { formula: true, texto: 't ≈ 2,68' },
+        { formula: true, resposta: true,
+          texto: 'Logo, os oceanos atingem a concentração limite 0,9 em t ≈ ' + num(DF.anosAteLimite, 2) + ' anos' }
+    ];
+}
+
+// Passos da resolução para o k escolhido no 4º desafio.
+// x(t) = 1 − 0,5·e^{−kt} com k = 0,9.
+function dfPassosK(k) {
+    const kk = num(k, 1);        // vírgula decimal, como no enunciado
+    return [
+        { formula: true, texto: 'x(t) = 1 − 0,5·e^{−' + kk + 't}  ⇒  0,9 = 1 − 0,5·e^{−' + kk + 't}' },
+        { formula: true, texto: '0,5·e^{−' + kk + 't} = 1 − 0,9  ⇒  0,5·e^{−' + kk + 't} = 0,1' },
+        { formula: true, texto: '0,5·e^{−' + kk + 't} = 0,1  ⇒  e^{−' + kk + 't} = 0,1 / 0,5' },
+        { formula: true, texto: 'e^{−' + kk + 't} = 0,2  ⇒  ln(e^{−' + kk + 't}) = ln(0,2)' },
+        { formula: true, texto: '−' + kk + 't ≈ −1,6094  ⇒  t ≈ 1,6094 / ' + kk },
+        { formula: true, resposta: true,
+          texto: 'Logo, os oceanos atingem a concentração limite 0,9 em t ≈ ' + num(dfAnosAteLimite(k), 2) + ' anos' }
+    ];
+}
+
+// as quatro alternativas de prazo, compartilhadas pelos 2º e 3º desafios
+function dfOpcoesPrazo(correta) {
+    return [
+        { txt: 'Em menos de 1 ano, ou seja, na primeira iteração.', ok: correta === 0,
+          errado: 'Em menos de 1 ano os oceanos ainda não chegaram em 0,9.' },
+        { txt: 'Em mais de 1 ano e menos de 2 anos, ou seja, na segunda iteração.', ok: correta === 1,
+          errado: 'Nesse intervalo, os oceanos ainda não chegaram na concentração 0,9.' },
+        { txt: 'Em mais de 2 anos e menos de 3 anos, ou seja, na terceira iteração.', ok: correta === 2,
+          errado: 'Na segunda iteração a concentração já atingiu 0,92 superando o limite 0,9.' },
+        { txt: 'Em mais de 3 anos, ou seja, a partir da quarta iteração.', ok: correta === 3,
+          errado: 'Em mais de 3 anos a concentração supera 0,9.' }
+    ];
+}
+
+const dfEtapas = [
+    {
+        rotulo: '',
+        somenteDados: true,
+        enunciado: 'Guarde estes dados: eles valem para todos os desafios que vêm a seguir.',
+        // GAIA lê os dados atuais em voz alta antes de liberar o início.
+        // Apenas áudio: o texto NÃO é exibido, para não duplicar o quadro.
+        falaGaia: {
+            voice: 'Atenção aos dados atuais. Oceano: concentração inicial x zero igual a zero vírgula cinco, equilíbrio x igual a um, o p H inicial dos oceanos é igual a oito vírgula um. Suponha que para cada unidade de C O 2 absorvido o p H baixa em uma unidade. Os corais sobrevivem enquanto o p H for maior ou igual a sete vírgula sete.'
+        },
+        opcoes: []
+    },
+    {
+        rotulo: '1º DESAFIO — Quantidade segura',
+        enunciado: 'Temos que o pH atual é de 8,1 e que os corais sobrevivem com pH maior ou igual a 7,7. Supondo que a cada unidade de gás CO₂ absorvida pelos oceanos o pH <strong>baixa</strong> uma unidade, qual a quantidade máxima da concentração de CO₂ que os oceanos podem absorver sem que prejudiquem a vida marinha?',
+        animacao: 'quantidade',
+        opcoes: [
+            { txt: '0,2', ok: false,
+              errado: 'Muito pouco. Se os oceanos absorverem 0,2 o pH cairia para <strong>7,9</strong> e ainda há folga antes de atingir 7,7.' },
+            { txt: '0,3', ok: false,
+              errado: 'Quase lá. Se o pH baixa 1 unidade por unidade absorvida, ainda sobra folga antes de 7,7.' },
+            { txt: '0,4', ok: true,
+              certo: 'Exatamente. O pH pode descer de 8,1 até 7,7, uma diferença de <strong>0,4</strong>. ' },
+            { txt: '0,5', ok: false,
+              errado: 'Se o oceano absorvesse 0,5, o pH cairia a 8,1 − 0,5 = <strong>7,6</strong>, que é abaixo de 7,7. Os corais não sobreviveriam.' }
+        ]
+    },
+    {
+        rotulo: '2º DESAFIO — Modelo em tempo discreto',
+        enunciado: 'Calcule as primeiras iterações da equação de diferença x<sub>n+1</sub> = x<sub>n</sub> + k(1 &minus; x<sub>n</sub>) para x<sub>0</sub> = 0,5 e k = 0,6 e suponha que cada iteração seja o intervalo de 1 ano. Agora escolha em que período os oceanos atingirão o valor da concentração 0,9 sem prejudicar a vida marinha:',
+        dica: 'Inicie com n = 0.',
+        animacao: 'discreto',
+        opcoes: dfOpcoesPrazo(1)
+    },
+    {
+        rotulo: '3º DESAFIO — Modelo em tempo contínuo',
+        enunciado: 'Calcule, utilizando o modelo do sistema em tempo contínuo x(t) = 1 &minus; (1 &minus; x<sub>0</sub>)e<sup>&minus;kt</sup>, em quanto tempo os oceanos atingirão o valor da concentração 0,9. Lembre-se que a concentração inicial de CO₂ é 0,5 e o parâmetro k é 0,6.',
+        dica: 'Use a propriedade ln(e<sup>x</sup>) = x &nbsp; e &nbsp; ln(0,2) &asymp; &minus;1,6094',
+        animacao: 'continuo',
+        opcoes: dfOpcoesPrazo(2)
+    },
+    {
+        rotulo: '4º DESAFIO — A decisão é sua',
+        enunciado: 'Vimos que o oceano irá absorver o CO₂ disponível na atmosfera até atingir seu ponto de equilíbrio e que acima de 0,9 da sua capacidade este gás começa a prejudicar a vida marinha. Você não consegue alterar a quantidade atual da concentração de CO₂ nos oceanos, mas podemos alterar o parâmetro de absorção deste gás, ou seja, o parâmetro k. <strong style="color:#ffeb3b;">Clique na linha da tabela com a melhor opção de k.</strong>',
+        tabelaK: true,
+        opcoes: [],
+        final: true
+    }
+];
+
+let dfPasso = 0;
+
+function dfRenderizar() {
+    const etapa = dfEtapas[dfPasso];
+    const cont = document.getElementById('df-conteudo');
+    document.getElementById('df-contador').textContent = etapa.rotulo;
+
+    // os "dados atuais" aparecem só na tela inicial do desafio
+    document.getElementById('df-dados').style.display = etapa.somenteDados ? 'block' : 'none';
+
+    // telas 1 a 4: enunciado/alternativas à esquerda, lousa à direita
+    const duasColunas = !etapa.somenteDados;
+    const corpo = document.getElementById('df-corpo');
+    const colDir = document.getElementById('df-col-dir');
+    corpo.classList.toggle('duas-colunas', duasColunas);
+    colDir.style.display = duasColunas ? 'flex' : 'none';
+    colDir.innerHTML = duasColunas ? dfLousaHTML() : '';
+
+    let html = '<div class="df-enunciado">' + etapa.enunciado + '</div>';
+
+    if (etapa.dica) html += '<div class="df-dica">' + etapa.dica + '</div>';
+    if (etapa.tabelaK) {
+        html += '<div class="df-enunciado" style="opacity:.85;">Use x(t) = 1 &minus; 0,5·e<sup>&minus;kt</sup> para calcular os anos de cada linha:</div>';
+        html += dfTabelaKHTML();
+    }
+
+    html += '<div id="df-opcoes"></div><div id="df-retorno"></div>';
+
+    // tela só de dados: GAIA lê os dados em voz alta (sem exibir o texto)
+    // e o botão COMEÇAR só surge quando ela termina.
+    if (etapa.somenteDados) {
+        html += '<div id="df-comecar-box" style="text-align:center; margin-top:6px;"></div>';
+    }
+
+    // barra de navegação: VOLTAR (desafio anterior) + RECOMEÇAR (volta ao 1º)
+    // na tela de dados não há RECOMEÇAR: ainda não existe progresso a reiniciar.
+    html += '<div class="df-nav">'
+          + '<button class="df-nav-btn" id="df-voltar"' + (dfPasso === 0 ? ' disabled' : '') + '>&lt;&lt; VOLTAR</button>'
+          + (etapa.somenteDados ? '' : '<button class="df-nav-btn" id="df-recomecar">RECOMEÇAR</button>')
+          + '</div>';
+    cont.innerHTML = html;
+
+    // 4º desafio: a escolha é feita diretamente na tabela
+    if (etapa.tabelaK) {
+        Array.prototype.forEach.call(cont.querySelectorAll('tr.escolhavel'), tr => {
+            tr.onclick = () => dfResponderTabela(tr);
+        });
+    } else if (!etapa.somenteDados) {
+        const cx = document.getElementById('df-opcoes');
+        etapa.opcoes.forEach((op, i) => {
+            const b = document.createElement('button');
+            b.className = 'df-opcao';
+            b.innerHTML = op.txt;
+            b.onclick = () => dfResponder(i);
+            cx.appendChild(b);
+        });
+    }
+
+    // GAIA lê os dados atuais em voz alta; o texto NÃO é exibido.
+    // O botão COMEÇAR surge quando a fala termina (ou por segurança após 20 s).
+    if (etapa.somenteDados && etapa.falaGaia) {
+        let liberou = false;
+        const liberarBotao = () => {
+            if (liberou) return;
+            liberado = true;
+            const box = document.getElementById('df-comecar-box');
+            if (!box) return;
+            box.innerHTML = '<button class="df-opcao" id="df-comecar" style="width:auto; display:inline-block; text-align:center; background:rgba(0,229,255,.18); border-color:#00e5ff;">COMEÇAR OS DESAFIOS &gt;&gt;</button>';
+            const comecar = document.getElementById('df-comecar');
+            comecar.onclick = () => { playBeep(); window.speechSynthesis.cancel(); dfPasso++; dfRenderizar(); };
+        };
+        // rede de segurança: se a voz não terminar, o botão ainda aparece
+        setTimeout(liberarBotao, 20000);
+        playGaiaVoice(etapa.falaGaia.voice, 'df-waves', liberarBotao);
+    }
+
+    // a lousa só existe nas telas 1 a 4
+    if (duasColunas) {
+        dfLousaIniciar();
+        // o layout só assenta depois do render: remedir para o canvas
+        // ter exatamente o tamanho exibido (evita traço distorcido).
+        setTimeout(dfLousaRedimensionar, 120);
+        if (!dfLousaAoRedimensionar) {
+            dfLousaAoRedimensionar = true;
+            window.addEventListener('resize', function () {
+                if (document.getElementById('df-wb-canvas')) dfLousaRedimensionar();
+            });
+        }
+    }
+
+    const recomecar = document.getElementById('df-recomecar');
+    if (recomecar) {
+        recomecar.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            dfPasso = 0;
+            dfRenderizar();
+        };
+    }
+
+    const voltar = document.getElementById('df-voltar');
+    if (!voltar.disabled) {
+        voltar.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            dfPasso--;
+            dfRenderizar();
+        };
+    }
+}
+
+function dfResponder(indice) {
+    const etapa = dfEtapas[dfPasso];
+    const op = etapa.opcoes[indice];
+    const cx = document.getElementById('df-opcoes');
+    const rt = document.getElementById('df-retorno');
+    playBeep();
+
+    Array.prototype.forEach.call(cx.querySelectorAll('button'), b => {
+        b.style.pointerEvents = 'none';
+        b.style.opacity = '.45';
+    });
+
+    if (op.ok) {
+        // Nenhuma mensagem é escrita na tela: a GAIA fala.
+        rt.innerHTML = '';
+
+        const certo = cx.querySelectorAll('button')[indice];
+        certo.style.opacity = '1';
+        certo.style.borderColor = '#00ff66';
+        certo.style.background = 'rgba(0,255,102,.15)';
+
+        // o acerto é o único momento em que a lousa é limpa:
+        // o rascunho dá lugar à resolução.
+        dfLousaLimpar();
+
+        let revelado = false;
+        const revelar = () => {
+            if (revelado) return;
+            revelado = true;
+
+            // todos os desafios: resolução em etapas, animada como o quadro negro
+            if (etapa.animacao === 'quantidade') {
+                dfLousaAnimar(op.certo || '', dfPassosQuantidade());
+            } else if (etapa.animacao === 'discreto') {
+                dfLousaAnimar(op.certo || '', dfPassosDiscreto());
+            } else if (etapa.animacao === 'continuo') {
+                dfLousaAnimar(op.certo || '', dfPassosContinuo());
+            } else {
+                dfLousaMostrarResolucao('<div class="df-retorno certo">' + (op.certo || '') + '</div>');
+            }
+
+            if (etapa.final) {
+                setTimeout(dfEncerrar, 1800);
+            } else {
+                const prox = document.createElement('button');
+                prox.className = 'df-opcao';
+                prox.style.textAlign = 'center';
+                prox.style.background = 'rgba(0,229,255,.18)';
+                prox.style.borderColor = '#00e5ff';
+                prox.textContent = 'CONTINUAR >>';
+                prox.onclick = () => { playBeep(); dfPasso++; dfRenderizar(); };
+                rt.appendChild(prox);
+            }
+        };
+
+        // a GAIA avisa ANTES de a resolução aparecer na lousa
+        playGaiaVoice('Correto! Verifique a resolução na lousa.', 'df-waves', revelar);
+        setTimeout(revelar, 15000);      // rede de segurança: sem voz, não trava
+    } else {
+        // Sem texto na tela: só a fala da GAIA e o botão de tentar de novo.
+        rt.innerHTML = '<div style="margin-top:12px;"><button class="df-opcao" id="df-tentar" style="width:auto;display:inline-block;">TENTAR DE NOVO</button></div>';
+        playGaiaVoice('Não é essa. ' + dfTextoParaFala(op.errado), 'df-waves');
+        const t = document.getElementById('df-tentar');
+        if (t) t.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            // guarda o rascunho antes de a tela ser redesenhada
+            dfLousaRestaurar(dfLousaSalvar());
+            dfRenderizar();
+        };
+    }
+}
+
+// 4º desafio: o aluno clica numa linha da tabela de k
+function dfResponderTabela(tr) {
+    const rt = document.getElementById('df-retorno');
+    const cont = document.getElementById('df-conteudo');
+    playBeep();
+
+    const linhas = cont.querySelectorAll('tr.escolhavel');
+    const ok = tr.dataset.ok === '1';
+    linhas.forEach(l => { l.style.pointerEvents = 'none'; });
+    tr.classList.add('selecionado');
+    if (!ok) tr.style.opacity = '.5';
+
+    const k = tr.dataset.k;
+    const anos = tr.dataset.anos;
+
+    if (ok) {
+        // Nada é escrito na tela: a GAIA fala e a lousa recebe a resolução
+        // de x(t) = 1 − 0,5·e^{−kt} para o k escolhido, no mesmo formato
+        // animado dos demais desafios. A tela final só surge no fim.
+        rt.innerHTML = '';
+        dfLousaLimpar();
+
+        const observacao = 'É a melhor opção. Com <strong>k = ' + k + '</strong> os oceanos atingem a concentração limite 0,9 em apenas <strong>' + anos + ' anos</strong>.';
+
+        let revelado = false;
+        const revelar = () => {
+            if (revelado) return;
+            revelado = true;
+            dfLousaAnimar(observacao, dfPassosK(parseFloat(k.replace(',', '.'))), () => {
+                setTimeout(dfEncerrar, 1800);
+            });
+        };
+
+        playGaiaVoice('Correto! Verifique a resolução na lousa.', 'df-waves', revelar);
+        setTimeout(revelar, 15000);      // rede de segurança
+    } else {
+        // Sem texto na tela: só a fala da GAIA e o botão de tentar de novo.
+        rt.innerHTML = '<div style="margin-top:12px;"><button class="df-opcao" id="df-tentar" style="width:auto;display:inline-block;">TENTAR DE NOVO</button></div>';
+        playGaiaVoice('Não é a melhor opção. Com k igual a ' + k.replace(',', ' vírgula ')
+                    + ', os oceanos levariam ' + anos.replace(',', ' vírgula ')
+                    + ' anos para atingir zero vírgula nove. Não prejudica a vida marinha, mas é mais lento do que o necessário.', 'df-waves');
+        const t = document.getElementById('df-tentar');
+        if (t) t.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            dfLousaRestaurar(dfLousaSalvar());   // o rascunho permanece
+            dfRenderizar();
+        };
+    }
+}
+
+// ---------- TELA FINAL DA MISSÃO ----------
+// Arquivo separado, mostrado depois que a resolução do 4º desafio
+// terminou de aparecer na lousa.
+const DF_TELA_FINAL = 'fim_missao_oceano.html';
+
+function dfEncerrar() {
+    window.speechSynthesis.cancel();
+    document.getElementById('df-contador').textContent = 'MISSÃO OCEANO CONCLUÍDA';
+
+    // entrega os números da resolução para a tela final
+    try {
+        sessionStorage.setItem('dfResultado', JSON.stringify({
+            absorcao: num(DF.maxAbsorcao, 1),        // 0,4
+            limite: num(DF.x0 + DF.maxAbsorcao, 1),  // 0,9
+            anos: num(dfAnosAteLimite(0.9), 2)       // 1,79
+        }));
+    } catch (e) { /* sem sessionStorage: a tela final usa os valores padrão */ }
+
+    window.location.replace(DF_TELA_FINAL);
+}
+
+// ---------- ABERTURA / FECHAMENTO DO DESAFIO FINAL ----------
+function abrirUltimoDesafio() {
+    const modal = document.getElementById('desafio-final-modal');
+    dfPasso = 0;
+    modal.style.display = 'flex';
+    modal.classList.add('ativo');
+    dfRenderizar();
+    playBeep();
+}
+
+function fecharDesafioFinal() {
+    const modal = document.getElementById('desafio-final-modal');
+    modal.classList.remove('ativo');
+    modal.style.display = 'none';
+    window.speechSynthesis.cancel();
+    playBeep();
+}
+// ---------- LÓGICA DO QUIZ (DESAFIO 3) ----------
+let quizDesafio3Resolvido = false;
+const optionBtns = document.querySelectorAll('.option-btn');
+const btnVoltarDesafio = document.getElementById('btn-voltar-desafio');
+const quizModal = document.getElementById('quiz-modal');
+
+function fecharQuizERetornarAoLab(sucesso) {
+    quizModal.classList.remove('active');
+    setTimeout(() => {
+        quizModal.style.display = 'none';
+        
+        // Verifica se o desafio foi resolvido corretamente e parte para a
+        // passagem discreto -> contínuo no laboratório
+        if (sucesso && !quizDesafio3Resolvido) {
+            quizDesafio3Resolvido = true;
+            
+            isInteractivePhase2 = false;
+            
+            // oculta a Tabela e os Controles da Fase 2
+            document.getElementById('tabela-container').style.display = 'none';
+            document.getElementById('container-controles').style.display = 'none';
+            document.getElementById('lab-hud').classList.remove('active');
+
+            // Volta para a tela do laboratório e mostra a passagem Δt passo a passo.
+            // O quadro negro só é aberto pelo botão CONTINUAR do último passo.
+            iniciarTransicaoDeltaT();
+        }
+    }, 800);
+}
+
+optionBtns.forEach((btn, index) => {
+    btn.addEventListener('click', function() {
+        if (index === 1 || this.getAttribute('data-correct') === 'true') {
+            // Segunda alternativa (Correta)
+            this.classList.add('correct');
+            playBeep();
+            
+            const textoFala = "Correto! Se aumentamos o valor do parâmetro k, aumentamos o fluxo e mais rápido o oceano absorve o gás.";
+            playGaiaVoice(textoFala, 'lab-waves', () => {
+                fecharQuizERetornarAoLab(true); // Passa true pois acertou a resposta
+            });
+        } else {
+            // Primeira, terceira ou quarta alternativa (Incorretas)
+            this.classList.add('wrong');
+            playBeep();
+            
+            const textoFala = "Compare novamente a quantidade de iterações quando você escolhe um parâmetro menor ou maior.";
+            playGaiaVoice(textoFala, 'lab-waves');
+        }
+    });
+});
+
+btnVoltarDesafio.addEventListener('click', () => {
+    playBeep();
+    window.speechSynthesis.cancel();
+    
+    // Remove as formatações de erro caso o usuário queira tentar do zero ao voltar
+    optionBtns.forEach(btn => btn.classList.remove('wrong'));
+    
+    fecharQuizERetornarAoLab(false); // Passa false para apenas ocultar o modal e manter os sliders habilitados
+});
+
+</script>
+</body>
+</html>

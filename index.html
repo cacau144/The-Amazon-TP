@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Amazon Tipping Point</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+            opacity: 0; /* Começa invisível, o GSAP fará o fade in */
+            pointer-events: none; /* Desativado até o fim da animação */
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 3.5rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(0, 255, 100, 0.5);
+            margin-bottom: 10px;
+        }
+
+        p.subtitle {
+            color: #a8ffb2;
+            font-size: 1.5rem;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .btn-jogar {
+            padding: 15px 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #1d976c, #93f9b9);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-transform: uppercase;
+            pointer-events: auto; /* Permite clique no botão */
+        }
+
+        .btn-jogar:hover {
+            transform: scale(1.05) translateY(-3px);
+            box-shadow: 0 15px 25px rgba(29, 151, 108, 0.5);
+        }
+
+        #start-overlay {
+            position: absolute;
+            z-index: 20;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Botão central de início. O clique é obrigatório: é ele que
+           libera a reprodução do áudio, bloqueada pelo navegador até
+           haver uma interação do usuário. */
+        #start-btn {
+            position: absolute;
+            z-index: 21;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 14px 38px;
+            font-family: 'Orbitron', 'Segoe UI', sans-serif;
+            font-size: 1rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #93f9b9;
+            background: rgba(29, 151, 108, 0.22);
+            border: 2px solid #93f9b9;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 22px rgba(29, 151, 108, 0.45);
+            transition: background .3s, box-shadow .3s;
+        }
+
+        #start-btn:hover {
+            background: rgba(29, 151, 108, 0.5);
+            box-shadow: 0 0 34px rgba(29, 151, 108, 0.85);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Início obrigatório: o botão central libera o áudio -->
+    <div id="start-overlay"></div>
+    <button id="start-btn" type="button">Iniciar</button>
+
+    <!-- UI Final do Jogo -->
+    <div id="ui-layer">
+        <h1>The Amazon Tipping Point</h1>
+        <p class="subtitle">O futuro da Amazônia depende de suas decisões!</p>
+        <button class="btn-jogar">Jogar Agora</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <!-- Áudio de Fundo corrigido -->
+    <audio id="bg-music" loop>
+        <source src="audiosuspense.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Bibliotecas: Three.js e GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        let scene, camera, renderer, earth, clouds, co2Particles, oceanParticles;
+        const R = 5; // Raio da Terra
+
+        function init() {
+            // 1. Configuração Básica
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 20);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // 2. Iluminação
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.position.set(15, 10, 10);
+            scene.add(sunLight);
+
+            // 3. Criação da Terra
+            const textureLoader = new THREE.TextureLoader();
+            const earthGeo = new THREE.SphereGeometry(R, 64, 64);
+            const earthMat = new THREE.MeshStandardMaterial({
+                map: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
+                bumpMap: textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
+                bumpScale: 0.05,
+            });
+            earth = new THREE.Mesh(earthGeo, earthMat);
+            scene.add(earth);
+
+            // 4. Criação da Atmosfera / Nuvens
+            // CORREÇÃO: Usando um mapa de nuvens real ao invés do "earth-water.png" que causava o "descolamento" dos continentes
+            const cloudGeo = new THREE.SphereGeometry(R * 1.01, 64, 64);
+            const cloudMat = new THREE.MeshStandardMaterial({
+                map: textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_clouds_1024.png'),
+                transparent: true,
+                opacity: 0.4,
+                blending: THREE.AdditiveBlending
+            });
+            clouds = new THREE.Mesh(cloudGeo, cloudMat);
+            earth.add(clouds);
+
+            // 5. Partículas de CO2 (Invisíveis no início)
+            co2Particles = criarSistemaParticulas(0xff5555, 1500, R * 1.02, R * 1.08);
+            co2Particles.material.opacity = 0;
+            earth.add(co2Particles);
+
+            oceanParticles = criarSistemaParticulas(0x55aaff, 1000, R * 1.0, R * 1.05);
+            oceanParticles.material.opacity = 0;
+            earth.add(oceanParticles);
+
+            // Resize Handler
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Inicia o loop de renderização (independente da animação da câmera)
+            animateRender();
+        }
+
+        function criarSistemaParticulas(cor, quantidade, raioMin, raioMax) {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            for(let i=0; i<quantidade; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const r = raioMin + Math.random() * (raioMax - raioMin);
+                pos.push(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+            }
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            const mat = new THREE.PointsMaterial({
+                color: cor,
+                size: 0.05, 
+                transparent: true,
+                opacity: 1,
+                blending: THREE.AdditiveBlending
+            });
+            return new THREE.Points(geo, mat);
+        }
+
+        function latLongToVector3(lat, lon, radius) {
+            var phi = (90 - lat) * (Math.PI / 180);
+            var theta = (lon + 180) * (Math.PI / 180);
+            var x = -(radius * Math.sin(phi) * Math.cos(theta));
+            var z = (radius * Math.sin(phi) * Math.sin(theta));
+            var y = (radius * Math.cos(phi));
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function iniciarExperiencia() {
+            document.getElementById('start-overlay').style.display = 'none';
+            document.getElementById('start-btn').style.display = 'none';
+            // este clique é a interação que o navegador exige para liberar
+            // o áudio; o .catch cobre apenas o caso de autoplay bloqueado
+            document.getElementById('bg-music').play().catch(() => {});
+
+            const posBrasil = latLongToVector3(-10, -55, R * 2.5);
+            const posAmazonia = latLongToVector3(-3.4, -62.2, R * 1.1); 
+            const posAtmosfera = latLongToVector3(-3.4, -62.2, R * 1.4);
+            const posOceano = latLongToVector3(-15, -30, R * 1.3); 
+
+            const tl = gsap.timeline();
+
+            tl.to(camera.position, {
+                x: posBrasil.x, y: posBrasil.y, z: posBrasil.z,
+                duration: 6,
+                ease: "power2.inOut",
+                onUpdate: () => camera.lookAt(0,0,0)
+            }, "+=1");
+
+            tl.to(camera.position, {
+                x: posAmazonia.x, y: posAmazonia.y, z: posAmazonia.z,
+                duration: 4,
+                ease: "power2.inOut"
+            });
+
+            const panAmazonia = latLongToVector3(-1.0, -60.0, R * 1.1);
+            tl.to(camera.position, {
+                x: panAmazonia.x, y: panAmazonia.y, z: panAmazonia.z,
+                duration: 5,
+                ease: "linear"
+            });
+
+            tl.to(camera.position, {
+                x: posAtmosfera.x, y: posAtmosfera.y, z: posAtmosfera.z,
+                duration: 3,
+                ease: "power1.inOut"
+            });
+            tl.to(co2Particles.material, { opacity: 0.8, duration: 2 }, "-=1");
+
+            tl.to(camera.position, {
+                x: posOceano.x, y: posOceano.y, z: posOceano.z,
+                duration: 4,
+                ease: "power1.inOut",
+                onUpdate: () => camera.lookAt(0,0,0)
+            });
+            tl.to(oceanParticles.material, { opacity: 0.8, duration: 2 }, "-=1");
+
+            tl.to(camera.position, {
+                x: 0, y: 0, z: 20,
+                duration: 6,
+                ease: "power3.inOut",
+                onUpdate: () => camera.lookAt(0,0,0)
+            });
+
+            tl.to("#ui-layer", { opacity: 1, duration: 2, pointerEvents: "auto" });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animateRender() {
+            requestAnimationFrame(animateRender);
+            
+            if(clouds) clouds.rotation.y += 0.0005;
+            
+            if(co2Particles && co2Particles.material.opacity > 0) {
+                co2Particles.rotation.y += 0.001;
+                co2Particles.rotation.x += 0.0005;
+            }
+            if(oceanParticles && oceanParticles.material.opacity > 0) {
+                oceanParticles.rotation.y -= 0.001;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+
+        // ---------- INÍCIO OBRIGATÓRIO ----------
+        // A simulação NÃO começa sozinha: o aluno precisa acionar o botão
+        // central, e esse clique é o que libera o áudio no navegador.
+        const musica = document.getElementById('bg-music');
+        document.getElementById('start-btn').addEventListener('click', iniciarExperiencia);
+
+        // Rede de segurança: se o navegador ainda assim recusar o áudio,
+        // ele é retomado na primeira interação posterior, sem aviso algum.
+        const tocarNaInteracao = () => {
+            musica.play().catch(() => {});
+            window.removeEventListener('pointerdown', tocarNaInteracao);
+            window.removeEventListener('keydown', tocarNaInteracao);
+        };
+        window.addEventListener('pointerdown', tocarNaInteracao);
+        window.addEventListener('keydown', tocarNaInteracao);
+
+        document.querySelector('.btn-jogar').addEventListener('click', function() {
+            // replace: a etapa seguinte substitui esta no histórico, para
+            // que o botão "voltar" do navegador não desfaça a continuidade
+            window.location.replace('main.html');
+        });
+    </script>
+</body>
+</html>

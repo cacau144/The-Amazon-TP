@@ -1,0 +1,157 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    overflow: hidden;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+#start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    cursor: pointer;
+    text-align: center;
+    color: #ffffff;
+}
+
+#start-overlay h2 {
+    font-size: 2.5rem;
+    letter-spacing: 3px;
+    animation: blink 1.5s infinite;
+}
+
+#start-overlay p {
+    font-size: 1.5rem;
+}
+
+#stars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+    z-index: 1;
+    opacity: 0.3;
+}
+
+#container {
+    position: relative;
+    width: 80%;
+    height: 100vh;
+    margin: 0 auto;
+    perspective: 800px;
+    transform-style: preserve-3d;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+}
+
+#texto {
+    position: absolute;
+    top: 100%;
+    width: 100%;
+    max-width: 1000px;
+    text-align: center;
+    line-height: 1.8;
+    transform-origin: 50% 100%;
+    
+    /* Configurações contra o tremor (Jitter) */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    will-change: transform;
+    backface-visibility: hidden;
+    
+    /* Rolagem ajustada para 36s para sincronizar perfeitamente com a fala da IA */
+    animation: scrollText 36s linear forwards;
+    opacity: 0;
+}
+
+#texto h1, #texto h2, #texto p, #texto strong {
+    color: #ffffff;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    margin: 0;
+    padding-bottom: 50px;
+}
+
+#texto h1 {
+    font-size: 5rem;
+}
+
+#texto h2 {
+    font-size: 3.5rem;
+    padding-top: 30px;
+}
+
+#texto p {
+    font-size: 2.5rem;
+}
+
+#texto strong {
+    font-weight: bold;
+    text-shadow: 0 0 25px rgba(255, 255, 255, 1);
+}
+
+#start {
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 40px;
+    font-size: 1.8rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #000;
+    background-color: #ffffff;
+    border: 2px solid #aaa;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none; 
+    /* Botão ajustado para aparecer aos 18 segundos (metade da leitura) */
+    animation: fadeInBtn 2s ease forwards 18s;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+}
+
+#start:hover {
+    background-color: #e0e0e0;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 1);
+}
+
+@keyframes scrollText {
+    0% {
+        top: 100%;
+        transform: rotateX(25deg) translate3d(0, 0, 0);
+        opacity: 1;
+    }
+    100% {
+        top: -150%;
+        transform: rotateX(25deg) translate3d(0, -500px, 0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInBtn {
+    to {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAIA - Missão Floresta</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap');
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    user-select: none;
+}
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* TELA DE INÍCIO PARA DESBLOQUEAR ÁUDIO */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 50;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 26px;
+    transition: opacity 1s ease;
+    pointer-events: auto;
+}
+#start-titulo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.8rem);
+    color: #00e5ff;
+    letter-spacing: 6px;
+    text-align: center;
+    text-shadow: 0 0 22px rgba(0, 229, 255, .55);
+    margin: 0;
+}
+#start-sub {
+    font-size: 1.05rem;
+    color: #9fd8ff;
+    max-width: 620px;
+    text-align: center;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 20px;
+}
+#start-btn {
+    padding: 20px 40px;
+    font-size: 1.5rem;
+    font-family: 'Orbitron', sans-serif;
+    color: #00e5ff;
+    background: transparent;
+    border: 2px solid #00e5ff;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+#start-btn:hover {
+    background: rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 40px rgba(0, 229, 255, 0.8);
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-direction: column;
+    pointer-events: none;
+    padding-bottom: 40px;
+}
+
+/* ---------- HUD DE VOO ---------- */
+#flight-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 20px solid rgba(0, 229, 255, 0.05);
+    display: none;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+}
+.nose-vignette {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, transparent 55%, rgba(0, 15, 30, 0.85) 95%);
+}
+.crosshair-flight {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+}
+.crosshair-flight::before, .crosshair-flight::after {
+    content: '';
+    position: absolute;
+    background: #00e5ff;
+    box-shadow: 0 0 8px #00e5ff;
+}
+.crosshair-flight::before { top: 39px; left: -20px; width: 120px; height: 2px; }
+.crosshair-flight::after { left: 39px; top: 10px; width: 2px; height: 20px; }
+.flight-path-vector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #00e5ff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #00e5ff;
+}
+.hud-panel {
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    background: rgba(0, 20, 40, 0.4);
+    padding: 12px 18px;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 4px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+.hud-left { top: 40px; left: 40px; }
+.hud-right { top: 40px; right: 40px; text-align: right; }
+.hud-top {
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    letter-spacing: 4px;
+    font-weight: bold;
+    font-size: 16px;
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+}
+.rec-box {
+    color: #00ff66;
+    text-shadow: 0 0 8px #00ff66;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.dot {
+    width: 12px;
+    height: 12px;
+    background-color: #00ff66;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff66;
+    animation: blink 1s infinite;
+}
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+/* ---------- PAINEL HOLOGRÁFICO ---------- */
+#hologram-panel {
+    background: rgba(0, 20, 40, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 0 35px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(0, 229, 255, 0.05);
+    width: 70%;
+    max-width: 800px;
+    padding: 25px 35px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 1.2s ease, transform 1.2s ease, border-color 0.5s;
+    pointer-events: auto;
+    position: relative;
+}
+#hologram-panel.active { opacity: 1; transform: scale(1); }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.5);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    color: #00e5ff;
+    letter-spacing: 3px;
+}
+.audio-waves { display: flex; align-items: center; gap: 4px; height: 25px; }
+.bar {
+    width: 4px; height: 5px; background-color: #00e5ff; border-radius: 2px;
+    animation: wave 1s infinite ease-in-out;
+}
+.bar:nth-child(1) { animation-delay: 0.0s; }
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave {0%, 100% { height: 5px; } 50% { height: 22px; }}
+
+#dialogue-text {
+    font-size: 1.3rem;
+    line-height: 1.6;
+    min-height: 120px;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.action-btn {
+    margin-top: 12px; padding: 10px 22px; background: rgba(0, 229, 255, 0.12);
+    border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Orbitron', sans-serif;
+    cursor: pointer; transition: 0.3s; display: none;
+    text-transform: uppercase; letter-spacing: 1px; font-size: 1rem;
+}
+.action-btn:hover { background: #00e5ff; color: #000; box-shadow: 0 0 15px rgba(0, 229, 255, 0.6); }
+
+/* tela final da abertura */
+#fim-abertura {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 4px;
+    color: #ffeb3b;
+    font-size: clamp(1.1rem, 3vw, 1.8rem);
+    text-shadow: 0 0 24px rgba(255, 235, 59, .55);
+    opacity: 0;
+    transition: opacity 1.6s ease;
+    pointer-events: none;
+    z-index: 6;
+    width: min(760px, 88vw);
+}
+#fim-abertura.visivel { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- HUD DE VOO -->
+<div id="flight-hud">
+    <div class="nose-vignette"></div>
+    <div class="hud-top">AMAZON RECON // FOREST CARBON SURVEY</div>
+    <div class="crosshair-flight"></div>
+    <div class="flight-path-vector"></div>
+    <div class="hud-panel hud-left">
+        <div class="rec-box"><div class="dot"></div> AMAZON CAM 01 - LIVE</div>
+        <div>AIRSPEED: 850 KTS</div>
+        <div>ALTITUDE: 12,000 FT</div>
+        <div>PITCH: -4.2°</div>
+        <div>ROLL: +1.0°</div>
+    </div>
+    <div class="hud-panel hud-right">
+        <div>SYS: AUTOPILOT / SURFACE STABILITY</div>
+        <div id="heading-display">HDG: 045° (NE)</div>
+        <div id="lat-display">LAT: 62°15'10" N</div>
+        <div id="lon-display">LON: 25°40'12" W</div>
+        <div id="target-display">SURFACE: AMAZÔNIA (EM RISCO)</div>
+    </div>
+</div>
+
+<!-- CANVAS THREE.JS BACKGROUND -->
+<div id="canvas-container"></div>
+
+<!-- UI LAYER PARA DIÁLOGO DE VOO DA GAIA -->
+<div id="ui-layer">
+    <div id="hologram-panel">
+        <div class="header">
+            <div class="title" id="panel-title">SISTEMA GAIA - MISSÃO FLORESTA</div>
+            <div class="audio-waves" id="waves" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <div id="dialogue-text"></div>
+        <button id="next-btn" class="action-btn">Avançar &gt;&gt;</button>
+    </div>
+</div>
+
+<div id="fim-abertura">
+    MISSÃO FLORESTA INICIADA<br>
+    <span style="font-family:'Rajdhani',sans-serif; letter-spacing:2px; font-size:.8rem; color:#9fd8ff; display:block; margin-top:14px;">
+        Os dados da Amazônia estão prontos para análise.
+    </span>
+</div>
+
+<!-- TELA DE INÍCIO -->
+<div id="start-screen">
+    <h1 id="start-titulo">MISSÃO FLORESTA</h1>
+    <button id="start-btn">INICIAR MISSÃO FLORESTA</button>
+</div>
+
+<script>
+// ---------- CONFIGURAÇÃO 3D (THREE.JS) ----------
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000511, 0.001);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 20);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+const sunLight = new THREE.DirectionalLight(0x00e5ff, 1.2);
+sunLight.position.set(20, 10, 15);
+scene.add(sunLight);
+
+const earthRadius = 10;
+const textureLoader = new THREE.TextureLoader();
+const earthTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+const cloudTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+
+const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
+const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture, shininess: 25 });
+const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+scene.add(earth);
+
+const cloudGeometry = new THREE.SphereGeometry(earthRadius + 0.12, 64, 64);
+const cloudMaterial = new THREE.MeshPhongMaterial({ map: cloudTexture, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+scene.add(clouds);
+
+const starGeometry = new THREE.BufferGeometry();
+const starCount = 2000;
+const starPositions = new Float32Array(starCount * 3);
+for(let i = 0; i < starCount * 3; i++) { starPositions[i] = (Math.random() - 0.5) * 500; }
+starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starMaterial = new THREE.PointsMaterial({ color: 0x88e5ff, size: 0.7 });
+const stars = new THREE.Points(starGeometry, starMaterial);
+scene.add(stars);
+
+// Ângulo e altitude de voo baixo
+let flightAltitude = 2.2;
+const orbitRadius = earthRadius + flightAltitude;
+let flightAngle = 0;
+let flightSpeed = 0.0015;
+const orbitInclination = 0.45;
+let isFlying = true;
+
+const latDisplay = document.getElementById('lat-display');
+const lonDisplay = document.getElementById('lon-display');
+const headingDisplay = document.getElementById('heading-display');
+
+function animate() {
+    requestAnimationFrame(animate);
+    clouds.rotation.y += 0.0003;
+    earth.rotation.y += 0.0004;
+
+    if (isFlying) {
+        flightAngle += flightSpeed;
+        const x = Math.sin(flightAngle) * orbitRadius * Math.cos(orbitInclination);
+        const y = Math.sin(flightAngle) * orbitRadius * Math.sin(orbitInclination);
+        const z = Math.cos(flightAngle) * orbitRadius;
+        camera.position.set(x, y, z);
+
+        const aheadAngle = flightAngle + 0.08;
+        const targetX = Math.sin(aheadAngle) * earthRadius * Math.cos(orbitInclination);
+        const targetY = Math.sin(aheadAngle) * earthRadius * Math.sin(orbitInclination);
+        const targetZ = Math.cos(aheadAngle) * earthRadius;
+        camera.lookAt(targetX, targetY, targetZ);
+        camera.rotation.z += Math.sin(flightAngle * 2) * 0.03;
+
+        const lat = (Math.sin(flightAngle) * 65).toFixed(2);
+        const lon = ((flightAngle * 57.2958) % 360 - 180).toFixed(2);
+        const hdg = Math.floor((flightAngle * 57.2958 * 2) % 360);
+        latDisplay.innerText = `LAT: ${Math.abs(lat)}° ${lat >= 0 ? 'N' : 'S'}`;
+        lonDisplay.innerText = `LON: ${Math.abs(lon)}° ${lon >= 0 ? 'E' : 'W'}`;
+        headingDisplay.innerText = `HDG: ${String(hdg).padStart(3, '0')}°`;
+    } else {
+        camera.position.lerp(new THREE.Vector3(0, 0, 18), 0.03);
+        camera.lookAt(0, 0, 0);
+    }
+
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- ÁUDIO E VOZ DE GAIA ----------
+let audioCtx;
+function initAudio() {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playSpaceWind() {
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * 2;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 350;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.18;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start();
+}
+function playBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+}
+function playTypingBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+}
+
+// GAIA fala com voz feminina. A API de sintese de fala nao informa o
+// genero das vozes instaladas, entao filtramos pelos nomes delas.
+const VOZES_GAIA_FEMININAS = ['maria', 'luciana', 'francisca', 'helena', 'fernanda',
+    'juliana', 'camila', 'amanda', 'alice', 'beatriz', 'larissa', 'yara',
+    'lucia', 'vitória', 'vitoria', 'ines', 'female', 'feminin', 'feminina'];
+const VOZES_GAIA_MASCULINAS = ['daniel', 'antonio', 'antônio', 'ricardo', 'felipe',
+    'joao', 'joão', 'jorge', 'diego', 'marcos', 'male', 'masculin', 'masculina'];
+
+function escolherVozGaia() {
+    const vozes = window.speechSynthesis.getVoices();
+    if (!vozes.length) return null;
+    const nome = v => (v.name || '').toLowerCase();
+    const ptBR = vozes.filter(v => /^pt[-_]BR/i.test(v.lang));
+    const lista = ptBR.length ? ptBR : vozes;
+    const semMasculinas = lista.filter(
+        v => !VOZES_GAIA_MASCULINAS.some(n => nome(v).includes(n))
+    );
+    const femininas = semMasculinas.filter(
+        v => VOZES_GAIA_FEMININAS.some(n => nome(v).includes(n))
+    );
+    return femininas[0] || semMasculinas[0] || lista[0] || null;
+}
+let gaiaVoice = null;
+function carregarVozes() {
+    const voices = window.speechSynthesis.getVoices();
+    gaiaVoice = escolherVozGaia();
+}
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = carregarVozes;
+}
+function playGaiaVoice(text, targetWaves = 'waves') {
+    window.speechSynthesis.cancel();
+    if (!text) return;
+
+    let spokenText = text
+        .replace(/CO_2/g, "C O 2")
+        .replace(/CO₂/g, "C O 2");
+
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    if (gaiaVoice) utterance.voice = gaiaVoice;
+    utterance.lang = 'pt-BR';
+    utterance.pitch = 0.95;
+    utterance.rate = 1.0;
+
+    const waveEl = document.getElementById(targetWaves);
+    if (waveEl) waveEl.style.display = 'flex';
+
+    utterance.onend = () => { if (waveEl) waveEl.style.display = 'none'; };
+    window.speechSynthesis.speak(utterance);
+}
+
+// ---------- FALAS DA GAIA (Falas_GAIA.docx) ----------
+const dialogues = [
+    "Você conseguiu acelerar a absorção de CO_2 pelos oceanos! Agora vamos prosseguir estudando as florestas!",
+    "Assim como os oceanos, as florestas absorvem CO_2 da atmosfera mas também podem liberar carbono, especialmente quando são destruídas ou queimadas!",
+    "A Amazônia é a maior floresta tropical do mundo e é responsável pela regulação do clima global.",
+    "Assim, iniciamos nossa missão de exploração e salvamento da Floresta Amazônica!"
+    ];
+
+let currentStep = 0;
+const textElement = document.getElementById('dialogue-text');
+const nextBtn = document.getElementById('next-btn');
+const panel = document.getElementById('hologram-panel');
+
+function typeWriter(text, i, targetEl, waveId, cb) {
+    if (i === 0) {
+        targetEl.innerHTML = "";
+        playGaiaVoice(text, waveId);
+    }
+    if (i < text.length) {
+        if (text.charAt(i) === '_' && i+1 < text.length && text.charAt(i+1) === '2') {
+            targetEl.innerHTML += "<sub>2</sub>";
+            i++;
+        } else {
+            targetEl.innerHTML += text.charAt(i);
+        }
+        if (i % 3 === 0) playTypingBeep();
+        setTimeout(() => typeWriter(text, i + 1, targetEl, waveId, cb), 35);
+    } else {
+        if (cb) cb();
+    }
+}
+
+function runSequence() {
+    nextBtn.style.display = 'none';
+    nextBtn.onclick = null;
+    if (currentStep === 0) {
+        panel.classList.add('active');
+    }
+    typeWriter(dialogues[currentStep], 0, textElement, 'waves', () => {
+        if (currentStep < dialogues.length - 1) {
+            nextBtn.innerText = "Avançar >>";
+            nextBtn.style.display = 'block';
+            nextBtn.onclick = nextStep;
+        } else {
+            nextBtn.innerText = "INICIAR MISSÃO FLORESTA >>";
+            nextBtn.style.display = 'block';
+            nextBtn.onclick = encerrarAbertura;
+        }
+    });
+}
+
+function nextStep() {
+    playBeep();
+    window.speechSynthesis.cancel();
+    currentStep++;
+    runSequence();
+}
+
+// Encerramento da abertura: o painel sai de cena e a Terra fica à vista.
+function encerrarAbertura() {
+    playBeep();
+    window.speechSynthesis.cancel();
+    isFlying = false;
+
+    const flightHud = document.getElementById('flight-hud');
+    flightHud.style.opacity = 0;
+    panel.style.opacity = 0;
+
+    document.getElementById('fim-abertura').classList.add('visivel');
+
+    setTimeout(() => {
+        flightHud.style.display = 'none';
+        panel.style.display = 'none';
+    }, 1500);
+}
+
+// ---------- INICIALIZAÇÃO AUTOMÁTICA ----------
+// Não há botão de abertura: a etapa começa sozinha assim que o arquivo
+// carrega, para que a passagem de um arquivo para o outro pareça contínua.
+(function iniciarEtapa() {
+    const tela = document.getElementById('start-screen');
+    if (tela) tela.style.display = 'none';
+
+    initAudio();
+    playSpaceWind();
+    carregarVozes();
+
+    const unlockVoice = new SpeechSynthesisUtterance("");
+    window.speechSynthesis.speak(unlockVoice);
+
+    // O navegador só libera o áudio depois de uma interação do usuário, e a
+    // troca de arquivo é automática. Se o contexto ficar suspenso, ele é
+    // retomado no primeiro clique ou tecla, sem exibir aviso algum.
+    const liberarAudio = () => {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        window.removeEventListener('pointerdown', liberarAudio);
+        window.removeEventListener('keydown', liberarAudio);
+    };
+    window.addEventListener('pointerdown', liberarAudio);
+    window.addEventListener('keydown', liberarAudio);
+
+    setTimeout(() => {
+        document.getElementById('flight-hud').style.display = 'block';
+        document.getElementById('flight-hud').style.opacity = 1;
+
+        setTimeout(runSequence, 1000);
+    }, 1000);
+})();
+</script>
+</body>
+</html>

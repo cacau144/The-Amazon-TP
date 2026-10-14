@@ -1,0 +1,790 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAIA — Encerramento da Missão Oceano</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+:root {
+    --cyan: #38e8ff;
+    --blue: #008cff;
+    --dark: #031426;
+    --glass: rgba(2, 19, 43, 0.78);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--dark);
+    color: #e7faff;
+}
+
+body {
+    overflow: hidden;
+}
+
+.ocean {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 580px;
+    overflow: hidden;
+    isolation: isolate;
+    background: #031b3b url("oceano-gaia.png") center center / cover no-repeat;
+}
+
+/* Escurecimento cinematográfico para destacar o holograma */
+.ocean::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(180deg,
+            rgba(0, 8, 28, .12),
+            rgba(0, 16, 40, .30) 48%,
+            rgba(0, 7, 22, .70)),
+        radial-gradient(ellipse at center,
+            transparent 15%,
+            rgba(0, 9, 27, .30) 100%);
+}
+
+/* Luz submarina em movimento */
+.light-rays {
+    position: absolute;
+    inset: -30%;
+    pointer-events: none;
+    background: repeating-conic-gradient(
+        from 245deg at 50% 0%,
+        transparent 0deg,
+        rgba(77, 235, 255, .045) 3deg,
+        transparent 7deg,
+        transparent 13deg
+    );
+    filter: blur(14px);
+    animation: rays 18s ease-in-out infinite alternate;
+}
+
+@keyframes rays {
+    from { transform: translateX(-2%) rotate(-2deg); opacity: .35; }
+    to   { transform: translateX(2%) rotate(3deg); opacity: .85; }
+}
+
+/* Brilho suave da água */
+.water-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        ellipse at 50% 8%,
+        rgba(32, 225, 255, .25),
+        transparent 48%
+    );
+    animation: glow 7s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { opacity: .45; }
+    to   { opacity: 1; }
+}
+
+/* Bolhas */
+.bubbles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bubble {
+    position: absolute;
+    bottom: -60px;
+    width: var(--size);
+    height: var(--size);
+    left: var(--left);
+    border: 1px solid rgba(178, 246, 255, .65);
+    border-radius: 50%;
+    background: radial-gradient(
+        circle at 30% 25%,
+        rgba(255,255,255,.45),
+        rgba(29,201,255,.04) 65%
+    );
+    box-shadow: 0 0 8px rgba(55, 222, 255, .2);
+    animation: rise var(--duration) linear var(--delay) infinite;
+}
+
+@keyframes rise {
+    0% {
+        transform: translate(0, 0) scale(.7);
+        opacity: 0;
+    }
+    10% { opacity: .7; }
+    85% { opacity: .45; }
+    100% {
+        transform: translate(var(--drift), -115vh) scale(1.15);
+        opacity: 0;
+    }
+}
+
+/* Partículas suspensas */
+.particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #a8f5ff;
+    box-shadow: 0 0 8px #38e8ff;
+    animation: drift var(--duration) ease-in-out var(--delay) infinite alternate;
+}
+
+@keyframes drift {
+    from { transform: translate(0, 0); opacity: .15; }
+    to { transform: translate(20px, -28px); opacity: .9; }
+}
+
+/* Peixes estilizados */
+.fish {
+    position: absolute;
+    left: -100px;
+    top: var(--y);
+    font-size: var(--size);
+    opacity: var(--opacity);
+    filter: drop-shadow(0 0 8px rgba(35, 211, 255, .5));
+    animation: swim var(--duration) linear var(--delay) infinite;
+    pointer-events: none;
+}
+
+@keyframes swim {
+    0% { transform: translateX(-120px) scaleX(1); }
+    49% { transform: translateX(52vw) scaleX(1); }
+    50% { transform: translateX(52vw) scaleX(-1); }
+    100% { transform: translateX(calc(100vw + 150px)) scaleX(-1); }
+}
+
+/* Cabeçalho */
+.topbar {
+    position: absolute;
+    top: 22px;
+    left: 28px;
+    right: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    z-index: 5;
+}
+
+.brand {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(14px, 2vw, 21px);
+    letter-spacing: 3px;
+    color: var(--cyan);
+    text-shadow: 0 0 16px rgba(56, 232, 255, .7);
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #b7f8ff;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3bffbd;
+    box-shadow: 0 0 12px #3bffbd;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    50% { opacity: .35; }
+}
+
+/* Holograma */
+.hologram {
+    position: absolute;
+    z-index: 4;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(680px, 88vw);
+    max-height: 76vh;
+    overflow-y: auto;
+    padding: clamp(22px, 4vw, 42px);
+    text-align: center;
+
+    background: linear-gradient(
+        145deg,
+        rgba(5, 35, 69, .88),
+        rgba(1, 15, 37, .84)
+    );
+
+    border: 1px solid rgba(56, 232, 255, .7);
+    border-radius: 12px;
+    box-shadow:
+        0 0 22px rgba(0, 199, 255, .22),
+        inset 0 0 30px rgba(0, 174, 255, .07);
+
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: hologram-in 1.4s ease-out both, holo-glow 5s ease-in-out 1.4s infinite;
+}
+
+.hologram::before,
+.hologram::after {
+    content: "";
+    position: absolute;
+    width: 35px;
+    height: 35px;
+    border-color: var(--cyan);
+    border-style: solid;
+    pointer-events: none;
+}
+
+.hologram::before {
+    top: -1px;
+    left: -1px;
+    border-width: 2px 0 0 2px;
+}
+
+.hologram::after {
+    right: -1px;
+    bottom: -1px;
+    border-width: 0 2px 2px 0;
+}
+
+@keyframes hologram-in {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%);
+        filter: blur(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+        filter: blur(0);
+    }
+}
+
+@keyframes holo-glow {
+    0%, 100% {
+        box-shadow: 0 0 22px rgba(0, 199, 255, .22),
+                    inset 0 0 30px rgba(0, 174, 255, .07);
+    }
+    50% {
+        box-shadow: 0 0 35px rgba(0, 199, 255, .42),
+                    inset 0 0 36px rgba(0, 174, 255, .12);
+    }
+}
+
+.mission-tag {
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(10px, 1.5vw, 13px);
+    letter-spacing: 3px;
+    margin-bottom: 14px;
+}
+
+h1 {
+    margin: 0 0 14px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(21px, 4vw, 34px);
+    line-height: 1.3;
+    color: #f0fdff;
+    text-shadow: 0 0 20px rgba(56, 232, 255, .55);
+}
+
+.message {
+    max-width: 530px;
+    margin: 0 auto;
+    font-size: clamp(16px, 2.4vw, 21px);
+    line-height: 1.55;
+    color: #d4f5ff;
+}
+
+.highlight {
+    color: var(--cyan);
+    font-weight: 700;
+}
+
+.divider {
+    width: 75%;
+    height: 1px;
+    margin: 22px auto;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    box-shadow: 0 0 8px rgba(56, 232, 255, .6);
+}
+
+.metrics {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 18px 0;
+}
+
+.metric {
+    min-width: 125px;
+    padding: 10px 14px;
+    border: 1px solid rgba(56, 232, 255, .27);
+    border-radius: 6px;
+    background: rgba(0, 134, 202, .10);
+}
+
+.metric strong {
+    display: block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    color: var(--cyan);
+}
+
+.metric span {
+    font-size: 13px;
+    color: #c4eaf6;
+}
+
+button {
+    cursor: pointer;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    transition: .25s ease;
+}
+
+.action {
+    margin-top: 10px;
+    padding: 13px 22px;
+    color: #001627;
+    font-weight: 700;
+    font-size: 12px;
+    background: var(--cyan);
+    border: 1px solid #b5faff;
+    border-radius: 4px;
+    box-shadow: 0 0 18px rgba(56, 232, 255, .25);
+}
+
+.action:hover {
+    background: #c3fbff;
+    box-shadow: 0 0 28px rgba(56, 232, 255, .55);
+    transform: translateY(-2px);
+}
+
+.sound-control {
+    display: none;
+}
+
+.bottom-label {
+    position: absolute;
+    bottom: 25px;
+    left: 26px;
+    z-index: 3;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(192, 244, 255, .7);
+}
+
+@media (max-width: 600px) {
+    .topbar { top: 15px; left: 15px; right: 15px; }
+    .status { font-size: 10px; letter-spacing: 1px; }
+    .hologram { width: 92vw; max-height: 72vh; padding: 23px 16px; }
+    .metric { min-width: 105px; padding: 8px; }
+    .bottom-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .light-rays, .water-glow, .bubble, .particle, .fish,
+    .hologram, .status-dot {
+        animation-duration: 30s !important;
+    }
+}
+</style>
+</head>
+
+<body>
+<main class="ocean" id="ocean">
+
+    <div class="light-rays"></div>
+    <div class="water-glow"></div>
+
+    <div class="bubbles" id="bubbles"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Peixes decorativos; remova ou altere os emojis se desejar -->
+    <div class="fish" style="--y:35%;--size:25px;--duration:35s;--delay:-8s;--opacity:.55">🐟</div>
+    <div class="fish" style="--y:58%;--size:18px;--duration:42s;--delay:-24s;--opacity:.45">🐠</div>
+    <div class="fish" style="--y:72%;--size:15px;--duration:31s;--delay:-16s;--opacity:.4">🐟</div>
+    <div class="fish" style="--y:43%;--size:13px;--duration:48s;--delay:-30s;--opacity:.35">🐠</div>
+
+    <header class="topbar">
+        <div class="brand">GAIA <span style="color:#e9fbff">/</span> S.C.G.</div>
+        <div class="status">
+            <span class="status-dot"></span>
+            SISTEMA ESTÁVEL
+        </div>
+    </header>
+
+    <!-- Painel holográfico: personalize o texto abaixo -->
+    <section class="hologram">
+        
+        <h1>MISSÃO OCEANO CONCLUÍDA</h1>
+
+        <p class="message">
+            Excelente trabalho!
+            Você ajustou o parâmetro <span class="highlight">k</span>
+            e investigou como a velocidade de absorção influencia
+            a concentração de CO₂ nos oceanos.
+        </p>
+
+        <div class="divider"></div>
+
+        <div class="metrics">
+            <div class="metric">
+                <strong id="mLimite">0,9</strong>
+                <span>Concentração-alvo do modelo</span>
+            </div>
+            <div class="metric">
+                <strong id="mAnos">1,79</strong>
+                <span>Anos previstos pelo modelo</span>
+            </div>
+        </div>
+
+        <p class="message">
+            Mas a missão ainda não terminou.
+            O CO₂ continua na atmosfera, contribuindo para o
+            aquecimento global.
+        </p>
+
+        <p class="message" style="margin-top:14px">
+            <span class="highlight">A próxima etapa espera por você.</span>
+        </p>
+
+        <button class="action" id="nextMission">
+            INICIAR MISSÃO FLORESTA &gt;
+        </button>
+    </section>
+
+    <div class="bottom-label">AMBIENTE SUBMARINO // GAIA AI</div>
+
+</main>
+
+<script>
+// =====================================================
+// 1. GERAR BOLHAS E PARTÍCULAS
+// =====================================================
+
+const bubbles = document.getElementById("bubbles");
+const particles = document.getElementById("particles");
+
+for (let i = 0; i < 34; i++) {
+    const b = document.createElement("div");
+    b.className = "bubble";
+    b.style.setProperty("--size", (3 + Math.random() * 11) + "px");
+    b.style.setProperty("--left", (Math.random() * 100) + "%");
+    b.style.setProperty("--duration", (10 + Math.random() * 18) + "s");
+    b.style.setProperty("--delay", (-Math.random() * 25) + "s");
+    b.style.setProperty("--drift", (-35 + Math.random() * 70) + "px");
+    bubbles.appendChild(b);
+}
+
+for (let i = 0; i < 48; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.setProperty("--x", Math.random() * 100 + "%");
+    p.style.setProperty("--y", Math.random() * 100 + "%");
+    p.style.setProperty("--duration", (4 + Math.random() * 8) + "s");
+    p.style.setProperty("--delay", (-Math.random() * 10) + "s");
+    particles.appendChild(p);
+}
+
+// =====================================================
+// 2. ÁUDIO AMBIENTE SINTETIZADO
+// Não necessita de arquivos externos e começa sozinho:
+// não há botão de ativação.
+// =====================================================
+
+const VOLUME = 0.25;          // volume fixo do ambiente
+let audioContext = null;
+let masterGain = null;
+let soundOn = false;
+let noiseSource = null;
+let bubbleTimer = null;
+
+function makeNoiseBuffer(ctx, seconds) {
+    const buffer = ctx.createBuffer(
+        1, ctx.sampleRate * seconds, ctx.sampleRate
+    );
+    const data = buffer.getChannelData(0);
+
+    // Ruído suave para simular água ambiente
+    let last = 0;
+    for (let i = 0; i < data.length; i++) {
+        const white = Math.random() * 2 - 1;
+        last = last * 0.965 + white * 0.035;
+        data[i] = last * 3.5;
+    }
+    return buffer;
+}
+
+function playBubble() {
+    if (!audioContext || !soundOn) return;
+
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(480 + Math.random() * 300, now);
+    osc.frequency.exponentialRampToValueAtTime(
+        180 + Math.random() * 100, now + 0.16
+    );
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.035, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.19);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+}
+
+async function startSound() {
+    if (soundOn) return true;
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return false;
+
+    try {
+        audioContext = new AudioCtx();
+        await audioContext.resume();
+
+        // O navegador só libera áudio depois de uma interação do usuário.
+        // Se ainda assim o contexto ficar suspenso, desiste e tenta de novo
+        // no primeiro clique ou tecla.
+        if (audioContext.state !== "running") {
+            audioContext.close();
+            audioContext = null;
+            return false;
+        }
+    } catch (error) {
+        audioContext = null;
+        return false;
+    }
+
+    masterGain = audioContext.createGain();
+    masterGain.gain.value = VOLUME;
+    masterGain.connect(audioContext.destination);
+
+    // Camada de ruído contínuo com filtro grave
+    noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = makeNoiseBuffer(audioContext, 5);
+    noiseSource.loop = true;
+
+    const lowPass = audioContext.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.frequency.value = 380;
+    lowPass.Q.value = 0.7;
+
+    const ambientGain = audioContext.createGain();
+    ambientGain.gain.value = 0.22;
+
+    noiseSource.connect(lowPass);
+    lowPass.connect(ambientGain);
+    ambientGain.connect(masterGain);
+    noiseSource.start();
+
+    // Pulsação grave e discreta
+    const drone = audioContext.createOscillator();
+    const droneGain = audioContext.createGain();
+    const droneFilter = audioContext.createBiquadFilter();
+
+    drone.type = "sine";
+    drone.frequency.value = 48;
+    droneFilter.type = "lowpass";
+    droneFilter.frequency.value = 100;
+    droneGain.gain.value = 0.055;
+
+    drone.connect(droneFilter);
+    droneFilter.connect(droneGain);
+    droneGain.connect(masterGain);
+    drone.start();
+
+    // Pequenas bolhas sonoras em intervalos variáveis
+    soundOn = true;
+    scheduleBubbles();
+    return true;
+}
+
+function scheduleBubbles() {
+    if (!soundOn) return;
+    playBubble();
+    bubbleTimer = setTimeout(
+        scheduleBubbles,
+        900 + Math.random() * 2400
+    );
+}
+
+async function iniciarSom() {
+    if (await startSound()) return;
+
+    // Áudio ainda bloqueado: reagenda para a primeira interação,
+    // sem exibir nenhum botão ao aluno.
+    const tentar = async () => {
+        if (await startSound()) {
+            window.removeEventListener("pointerdown", tentar);
+            window.removeEventListener("keydown", tentar);
+        }
+    };
+    window.addEventListener("pointerdown", tentar);
+    window.addEventListener("keydown", tentar);
+}
+
+// =====================================================
+// 3. FALA DA GAIA — lê o que está escrito no quadro translúcido
+// =====================================================
+
+let gaiaVoice = null;
+
+// GAIA fala com voz feminina. A API de síntese de fala não informa o
+// gênero das vozes instaladas, então filtramos pelos nomes delas.
+const VOZES_GAIA_FEMININAS = ['maria', 'luciana', 'francisca', 'helena', 'fernanda',
+    'juliana', 'camila', 'amanda', 'alice', 'beatriz', 'larissa', 'yara',
+    'lucia', 'vitória', 'vitoria', 'ines', 'female', 'feminin', 'feminina'];
+const VOZES_GAIA_MASCULINAS = ['daniel', 'antonio', 'antônio', 'ricardo', 'felipe',
+    'joao', 'joão', 'jorge', 'diego', 'marcos', 'male', 'masculin', 'masculina'];
+
+function escolherVozGaia() {
+    const vozes = window.speechSynthesis.getVoices();
+    if (!vozes.length) return null;
+    const nome = v => (v.name || '').toLowerCase();
+    const ptBR = vozes.filter(v => /^pt[-_]BR/i.test(v.lang));
+    const lista = ptBR.length ? ptBR : vozes;
+    const semMasculinas = lista.filter(
+        v => !VOZES_GAIA_MASCULINAS.some(n => nome(v).includes(n))
+    );
+    const femininas = semMasculinas.filter(
+        v => VOZES_GAIA_FEMININAS.some(n => nome(v).includes(n))
+    );
+    return femininas[0] || semMasculinas[0] || lista[0] || null;
+}
+
+function prepararParaVoz(texto) {
+    return String(texto)
+        .replace(/CO₂|CO_2/g, "C O 2")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function falarGaia() {
+    if (!("speechSynthesis" in window)) return;
+
+    // o quadro translúcido, na ordem em que o texto aparece
+    const alvos = document.querySelectorAll(
+        ".hologram h1, .hologram .message, .hologram .metric"
+    );
+
+    const falas = [];
+    alvos.forEach(el => {
+        const texto = prepararParaVoz(el.innerText);
+        if (texto) falas.push(texto);
+    });
+    if (!falas.length) return;
+
+    let i = 0;
+    function proxima() {
+        if (i >= falas.length) return;
+
+        const texto = falas[i++];
+        const utterance = new SpeechSynthesisUtterance(texto);
+        if (gaiaVoice) utterance.voice = gaiaVoice;
+        utterance.lang = "pt-BR";
+        utterance.pitch = 0.95;
+        utterance.rate = 0.98;
+
+        // avança no fim da fala; o tempo limite cobre o caso de o
+        // motor de voz não emitir onend e a fila travar.
+        let avancou = false;
+        const seguir = () => {
+            if (avancou) return;
+            avancou = true;
+            setTimeout(proxima, 450);
+        };
+        utterance.onend = seguir;
+        utterance.onerror = seguir;
+        setTimeout(seguir, Math.max(2500, texto.length * 70));
+
+        speechSynthesis.speak(utterance);
+    }
+
+    // deixa a tela assentar antes da primeira palavra
+    setTimeout(proxima, 1800);
+}
+
+if ("speechSynthesis" in window) {
+    gaiaVoice = escolherVozGaia();
+    speechSynthesis.addEventListener("voiceschanged", () => {
+        gaiaVoice = escolherVozGaia();
+    });
+}
+
+// =====================================================
+// 4. NÚMEROS DA RESOLUÇÃO, VINDOS DO DESAFIO FINAL
+// =====================================================
+
+function aplicarResultado(dados) {
+    if (!dados) return;
+    if (dados.limite) {
+        document.getElementById("mLimite").textContent = dados.limite;
+    }
+    if (dados.anos) {
+        document.getElementById("mAnos").textContent = dados.anos;
+    }
+}
+
+try {
+    aplicarResultado(JSON.parse(sessionStorage.getItem("dfResultado")));
+} catch (e) {
+    // sem dados salvos: o painel mantém os valores padrão
+}
+
+// =====================================================
+// 5. INÍCIO — som e fala, sem botão de ativação
+// =====================================================
+
+iniciarSom();
+falarGaia();
+
+// =====================================================
+// 6. BOTÃO PARA AVANÇAR
+// =====================================================
+
+document.getElementById("nextMission").addEventListener("click", () => {
+    window.location.replace("missao_floresta_abertura.html");
+});
+</script>
+
+</body>
+</html>

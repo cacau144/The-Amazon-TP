@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAIA - Missão Oceano</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600&display=swap');
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Rajdhani', sans-serif;
+    user-select: none;
+}
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+/* TELA DE INÍCIO PARA DESBLOQUEAR ÁUDIO */
+#start-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 50;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 1s ease;
+    pointer-events: auto;
+}
+#start-btn {
+    padding: 20px 40px;
+    font-size: 1.5rem;
+    font-family: 'Orbitron', sans-serif;
+    color: #00e5ff;
+    background: transparent;
+    border: 2px solid #00e5ff;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+#start-btn:hover {
+    background: rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 40px rgba(0, 229, 255, 0.8);
+}
+
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-direction: column;
+    pointer-events: none;
+    padding-bottom: 40px;
+}
+
+#flight-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 20px solid rgba(0, 229, 255, 0.05);
+    display: none;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+}
+.nose-vignette {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, transparent 55%, rgba(0, 15, 30, 0.85) 95%);
+}
+.crosshair-flight {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+}
+.crosshair-flight::before, .crosshair-flight::after {
+    content: '';
+    position: absolute;
+    background: #00e5ff;
+    box-shadow: 0 0 8px #00e5ff;
+}
+.crosshair-flight::before { top: 39px; left: -20px; width: 120px; height: 2px; }
+.crosshair-flight::after { left: 39px; top: 10px; width: 2px; height: 20px; }
+
+.flight-path-vector {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border: 2px solid #00e5ff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #00e5ff;
+}
+.hud-panel {
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+    font-size: 14px;
+    line-height: 1.6;
+    background: rgba(0, 20, 40, 0.4);
+    padding: 12px 18px;
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 4px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+.hud-left { top: 40px; left: 40px; }
+.hud-right { top: 40px; right: 40px; text-align: right; }
+.hud-top { 
+    top: 20px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+    letter-spacing: 4px;
+    font-weight: bold;
+    font-size: 16px;
+    position: absolute;
+    color: #00e5ff;
+    text-shadow: 0 0 6px rgba(0, 229, 255, 0.8);
+}
+.rec-box {
+    color: #00ff66;
+    text-shadow: 0 0 8px #00ff66;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+.formula {
+    color: #FFFFFF;;
+    font-family: "Times New Roman", serif;
+    font-size: 1.2em;
+    font-weight: normal;
+    font-style: normal;
+}
+.dot {
+    width: 12px;
+    height: 12px;
+    background-color: #00ff66;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00ff66;
+    animation: blink 1s infinite;
+}
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+#hologram-panel {
+    background: rgba(0, 20, 40, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 0 35px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(0, 229, 255, 0.05);
+    width: 70%;
+    max-width: 800px;
+    padding: 25px 35px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 1.2s ease, transform 1.2s ease, border-color 0.5s;
+    pointer-events: auto;
+    position: relative;
+}
+#hologram-panel.active { opacity: 1; transform: scale(1); }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.5);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.3rem;
+    color: #00e5ff;
+    letter-spacing: 3px;
+}
+.audio-waves { display: flex; align-items: center; gap: 4px; height: 25px; }
+.bar {
+    width: 4px; height: 5px; background-color: #00e5ff; border-radius: 2px;
+    animation: wave 1s infinite ease-in-out;
+}
+.bar:nth-child(1) { animation-delay: 0.0s; }
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.4s; }
+@keyframes wave {0%, 100% { height: 5px; } 50% { height: 22px; }}
+
+#dialogue-text {
+    font-size: 1.3rem; 
+    line-height: 1.6; 
+    min-height: 120px; 
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3); 
+} 
+
+.action-btn {
+    margin-top: 12px; padding: 10px 22px; background: rgba(0, 229, 255, 0.12); 
+    border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Orbitron', sans-serif; 
+    cursor: pointer; float: right; transition: 0.3s; display: none;
+    text-transform: uppercase; letter-spacing: 1px; font-size: 1rem;
+}
+.action-btn:hover { background: #00e5ff; color: #000; box-shadow: 0 0 15px rgba(0, 229, 255, 0.6); }
+
+/* LAYOUT DO LABORATORIO CLIMÁTICO */
+#lab-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5;
+    display: none;
+    opacity: 0;
+    transition: opacity 2s ease;
+    pointer-events: none;
+    padding: 20px;
+}
+#lab-hud.active {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    grid-template-rows: minmax(0, 1fr) 140px; 
+    gap: 20px;
+    opacity: 1;
+}
+
+#lab-hud.active.simulator-mode {
+    grid-template-columns: 0.7fr 1.5fr; 
+}
+
+/* PAINEL DO GRÁFICO / IMAGEM BOMBA */
+.graph-panel {
+    grid-column: 1;
+    grid-row: 1;
+    background: rgba(0, 15, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    position: relative;
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.1);
+    overflow: hidden; 
+}
+.graph-panel img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    transition: opacity 0.5s ease;
+}
+
+/* LOUSA DE CÁLCULOS */
+.whiteboard-panel {
+    grid-column: 2;
+    grid-row: 1;
+    background: rgba(0, 15, 30, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.1);
+    overflow: hidden; 
+}
+
+.panel-header {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    color: #00e5ff;
+    text-align: center;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+    padding-bottom: 10px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.whiteboard-wrapper {
+    position: relative;
+    flex-grow: 1;
+    margin-top: 15px;
+    background: rgba(0, 20, 35, 0.7);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 8px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: border-color 0.3s;
+    overflow: hidden;
+}
+.whiteboard-wrapper:focus-within {
+    border-color: #00ff66;
+    box-shadow: inset 0 0 15px rgba(0, 255, 102, 0.1);
+}
+
+.whiteboard-wrapper textarea {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: #00ff66;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 1.1rem;
+    padding: 15px;
+    resize: none;
+    outline: none;
+}
+
+#whiteboard-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    touch-action: none;
+}
+
+/* CONTROLES DA LOUSA */
+.wb-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+    align-items: center;
+    flex-shrink: 0;
+}
+.wb-controls .action-btn {
+    display: block;
+    float: none;
+    flex: 1;
+    margin-top: 0;
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 10px 5px;
+}
+.btn-apagar {
+    flex: 0.5 !important;
+    border-color: #ff5555 !important;
+    color: #ff5555 !important;
+}
+.btn-apagar:hover {
+    background: #ff5555 !important;
+    color: #000 !important;
+    box-shadow: 0 0 15px rgba(255, 85, 85, 0.6) !important;
+}
+
+/* CAIXA DE DIÁLOGO DA GAIA NO LAB */
+.lab-dialogue-panel {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+    background: rgba(0, 20, 40, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 229, 255, 0.5);
+    border-radius: 12px;
+    padding: 15px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: auto;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.15);
+}
+#lab-dialogue-text {
+    font-size: 1.2rem;
+    line-height: 1.5;
+    flex-grow: 1;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    overflow-y: auto;
+}
+
+
+/* SISTEMA DE QUIZ IMPORTADO DOS DESAFIOS ATMOSFERA */
+#quiz-modal {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 20;
+    background: rgba(0, 5, 12, 0.85);
+    backdrop-filter: blur(15px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+#quiz-modal.active { display: flex; opacity: 1; }
+.quiz-card {
+    background: rgba(0, 20, 45, 0.9);
+    border: 1px solid rgba(0, 229, 255, 0.6);
+    border-radius: 16px;
+    width: 90%; max-width: 800px;
+    padding: 35px;
+    box-shadow: 0 0 50px rgba(0, 229, 255, 0.25);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.quiz-question { font-size: 1.3rem; color: #fff; margin-bottom: 25px; line-height: 1.5; }
+.quiz-options { display: flex; flex-direction: column; gap: 12px; }
+.option-btn {
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    border-radius: 8px;
+    padding: 14px 20px;
+    color: #e0f7fc;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+.option-btn:hover {
+    background: rgba(0, 229, 255, 0.25);
+    border-color: #00e5ff;
+    transform: translateX(10px);
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+}
+.option-btn.wrong {
+    border-color: #ff3333;
+    background: rgba(255, 50, 50, 0.2);
+    color: #ff9999;
+}
+.option-btn.correct {
+    border-color: #00ff66;
+    background: rgba(0, 255, 102, 0.2);
+    color: #00ff66;
+}
+#btn-voltar-desafio {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    padding: 12px 30px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid #00e5ff;
+    color: #00e5ff;
+    font-family: 'Orbitron', sans-serif;
+    cursor: pointer;
+    transition: 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 1.1rem;
+    z-index: 30;
+}
+#btn-voltar-desafio:hover {
+    background: #00e5ff;
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
+}
+
+/* --- ESTILOS DO SIMULADOR 3D / GRÁFICOS --- */
+.simulator-canvas-container {
+    position: relative;
+    width: 100%;
+    flex-grow: 1;
+    flex-shrink: 1; 
+    min-height: 0; 
+    background: rgba(2, 6, 23, 0.8);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.controls-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(2, 6, 23, 0.4);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+    flex-shrink: 0;
+}
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+.slider-header span.highlight {
+    color: #38bdf8;
+    font-weight: bold;
+}
+input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    background: rgba(15, 23, 42, 0.9);
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    border: 1px solid rgba(14, 165, 233, 0.2);
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #38bdf8;
+    border: 2px solid #ffffff;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+}
+input[type=range]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+input[type=range]:disabled::-webkit-slider-thumb {
+    background: #64748b;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+</style>
+</head>
+<body>
+
+<!-- TELA DE INÍCIO -->
+<div id="start-screen">
+    <button id="start-btn">INICIAR MISSÃO OCEANO</button>
+</div>
+
+<!-- FLIGHT HUD -->
+<div id="flight-hud">
+    <div class="nose-vignette"></div>
+    <div class="hud-top">OCEAN RECON // LOW ALTITUDE SURVEY</div>
+    <div class="crosshair-flight"></div>
+    <div class="flight-path-vector"></div>
+    <div class="hud-panel hud-left">
+        <div class="rec-box"><div class="dot"></div> OCEAN CAM 01 - LIVE</div>
+        <div>AIRSPEED: 850 KTS</div>
+        <div>ALTITUDE: 12,000 FT</div>
+        <div>PITCH: -4.2°</div>
+        <div>ROLL: +1.0°</div>
+    </div>
+    <div class="hud-panel hud-right">
+        <div>SYS: AUTOPILOT / SURFACE STABILITY</div>
+        <div id="heading-display">HDG: 045° (NE)</div>
+        <div id="lat-display">LAT: 62°15'10" N</div>
+        <div id="lon-display">LON: 25°40'12" W</div>
+        <div id="target-display">SURFACE: ATLÂNTICO NORTE (SAUDÁVEL)</div>
+    </div>
+</div>
+
+<!-- CANVAS THREE.JS BACKGROUND -->
+<div id="canvas-container"></div>
+
+<!-- UI LAYER PARA DIÁLOGO DE VOO DA GAIA -->
+<div id="ui-layer">
+    <div id="hologram-panel">
+        <div class="header">
+            <div class="title" id="panel-title">SISTEMA GAIA - MISSÃO OCEANO</div>
+            <div class="audio-waves" id="waves" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <div id="dialogue-text"></div>
+        <button id="next-btn" class="action-btn">Avançar >></button>
+    </div>
+</div>
+
+<!-- LABORATÓRIO HUD -->
+<div id="lab-hud">
+    <!-- PAINEL ESQUERDO: IMAGEM OU HOLOGRAMA -->
+    <div class="graph-panel">
+        <img id="c3s-graph-img" src="bomba_fisica.png" alt="Bomba Física dos Oceanos">
+        
+        <div id="simulator-hologram" style="display:none; width: 100%; height: 100%; flex-direction: column;">
+            <div class="panel-header" style="margin-bottom: 10px;">Sistema Atmosfera e Oceano</div>
+            <div class="simulator-canvas-container">
+                <canvas id="canvas-oceano" style="width: 100%; height: 100%; display: block;"></canvas>
+            </div>
+            <div class="controls-container" id="container-controles"></div>
+        </div>
+    </div>
+
+    <!-- PAINEL DIREITO: LOUSA OU GRÁFICO DINÂMICO -->
+    <div class="whiteboard-panel">
+        <div class="panel-header" id="wb-title">LOUSA DE CÁLCULOS</div>
+        
+        <div class="whiteboard-wrapper" id="wb-wrapper">
+            <textarea id="whiteboard-textarea" placeholder="Utilize este espaço para anotações e cálculos do modelo de absorção oceânica..."></textarea>
+            <canvas id="whiteboard-canvas"></canvas>
+        </div>
+        
+        <div class="wb-controls" id="wb-controls">
+            <button id="mode-text-btn" class="action-btn" style="display: block; background: rgba(0, 229, 255, 0.4); color: #fff;">TEXTO</button>
+            <button id="mode-draw-btn" class="action-btn" style="display: block;">DESENHO</button>
+            <button id="clear-btn" class="action-btn btn-apagar" style="display: block;">APAGAR</button>
+        </div>
+
+        <div id="simulator-graph" style="display:none; width: 100%; height: 100%; flex-direction: column;">
+            <div class="panel-header" style="margin-bottom: 10px;">
+              Análise Gráfica do Fluxo de CO₂:
+              <span class="formula">
+                 F(C<sub>oce</sub>) = k(1 - C<sub>oce</sub>)
+              </span>
+            </div>
+            <div class="simulator-canvas-container">
+                <canvas id="canvas-grafico" style="width: 100%; height: 100%; display: block;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="lab-dialogue-panel">
+        <div class="header" style="margin-bottom: 8px; padding-bottom: 5px;">
+            <div class="title" style="font-size: 1.1rem;">GAIA - MODELAGEM DA REMOÇÃO DE CARBONO PELOS OCEANOS</div>
+            <div class="audio-waves" id="lab-waves" style="display: none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <div id="lab-dialogue-text" style="font-size: 1.2rem; line-height: 1.5; flex-grow: 1;"></div>
+        <div style="display: flex; justify-content: flex-end; margin-top: auto;">
+            <button id="challenge-trigger-btn" class="action-btn" style="margin-top: 0;">Avançar >></button>
+        </div>
+    </div>
+</div>
+
+<!-- SISTEMA DE QUIZ/DESAFIO QUE SUBSTITUI O QUADRO NEGRO MATEMÁTICO -->
+<div id="quiz-modal">
+    <div class="quiz-card">
+        <div class="header" style="border-bottom: none; margin-bottom: 5px;">
+            <div class="title" id="quiz-title" style="font-size: 1.3rem;">DESAFIO 1</div>
+        </div>
+        <div class="quiz-question" id="quiz-question-text"></div>
+        <div class="quiz-options" id="quiz-options-container"></div>
+    </div>
+    <button id="btn-voltar-desafio">VOLTAR</button>
+</div>
+
+<script>
+// ---------- CONFIGURAÇÃO 3D (THREE.JS) ----------
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000511, 0.001);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 20);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+const sunLight = new THREE.DirectionalLight(0x00e5ff, 1.2);
+sunLight.position.set(20, 10, 15);
+scene.add(sunLight);
+
+const earthRadius = 10;
+const textureLoader = new THREE.TextureLoader();
+const earthTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+const cloudTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+
+const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
+const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture, shininess: 25 });
+const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+scene.add(earth);
+
+const cloudGeometry = new THREE.SphereGeometry(earthRadius + 0.12, 64, 64);
+const cloudMaterial = new THREE.MeshPhongMaterial({ map: cloudTexture, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+scene.add(clouds);
+
+const starGeometry = new THREE.BufferGeometry();
+const starCount = 2000;
+const starPositions = new Float32Array(starCount * 3);
+for(let i = 0; i < starCount * 3; i++) { starPositions[i] = (Math.random() - 0.5) * 500; }
+starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+const starMaterial = new THREE.PointsMaterial({ color: 0x88e5ff, size: 0.7 });
+const stars = new THREE.Points(starGeometry, starMaterial);
+scene.add(stars);
+
+// Ângulo e altitude de voo baixo
+let flightAltitude = 2.2;
+const orbitRadius = earthRadius + flightAltitude;
+let flightAngle = 0;
+let flightSpeed = 0.0015;
+const orbitInclination = 0.45;
+let isFlying = true;
+
+const latDisplay = document.getElementById('lat-display');
+const lonDisplay = document.getElementById('lon-display');
+const headingDisplay = document.getElementById('heading-display');
+
+function animate() {
+    requestAnimationFrame(animate);
+    clouds.rotation.y += 0.0003;
+    earth.rotation.y += 0.0004;
+
+    if (isFlying) {
+        flightAngle += flightSpeed;
+        const x = Math.sin(flightAngle) * orbitRadius * Math.cos(orbitInclination);
+        const y = Math.sin(flightAngle) * orbitRadius * Math.sin(orbitInclination);
+        const z = Math.cos(flightAngle) * orbitRadius;
+        camera.position.set(x, y, z);
+
+        const aheadAngle = flightAngle + 0.08;
+        const targetX = Math.sin(aheadAngle) * earthRadius * Math.cos(orbitInclination);
+        const targetY = Math.sin(aheadAngle) * earthRadius * Math.sin(orbitInclination);
+        const targetZ = Math.cos(aheadAngle) * earthRadius;
+        camera.lookAt(targetX, targetY, targetZ);
+        camera.rotation.z += Math.sin(flightAngle * 2) * 0.03;
+
+        const lat = (Math.sin(flightAngle) * 65).toFixed(2);
+        const lon = ((flightAngle * 57.2958) % 360 - 180).toFixed(2);
+        const hdg = Math.floor((flightAngle * 57.2958 * 2) % 360);
+        latDisplay.innerText = `LAT: ${Math.abs(lat)}° ${lat >= 0 ? 'N' : 'S'}`;
+        lonDisplay.innerText = `LON: ${Math.abs(lon)}° ${lon >= 0 ? 'E' : 'W'}`;
+        headingDisplay.innerText = `HDG: ${String(hdg).padStart(3, '0')}°`;
+    } else {
+        camera.position.lerp(new THREE.Vector3(0, 0, 18), 0.03);
+        camera.lookAt(0, 0, 0);
+    }
+
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    if(document.getElementById('lab-hud').classList.contains('active')) {
+        resizeCanvas();
+    }
+});
+
+// ---------- ÁUDIO E VOZ DE GAIA ----------
+let audioCtx;
+function initAudio() {
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function playSpaceWind() {
+    if (!audioCtx) return;
+    const bufferSize = audioCtx.sampleRate * 2;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+    
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 350;
+    
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.18;
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start();
+}
+function playBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.25);
+}
+function playTypingBeep() {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+}
+
+// GAIA fala com voz feminina. A API de sintese de fala nao informa o
+// genero das vozes instaladas, entao filtramos pelos nomes delas.
+const VOZES_GAIA_FEMININAS = ['maria', 'luciana', 'francisca', 'helena', 'fernanda',
+    'juliana', 'camila', 'amanda', 'alice', 'beatriz', 'larissa', 'yara',
+    'lucia', 'vitória', 'vitoria', 'ines', 'female', 'feminin', 'feminina'];
+const VOZES_GAIA_MASCULINAS = ['daniel', 'antonio', 'antônio', 'ricardo', 'felipe',
+    'joao', 'joão', 'jorge', 'diego', 'marcos', 'male', 'masculin', 'masculina'];
+
+function escolherVozGaia() {
+    const vozes = window.speechSynthesis.getVoices();
+    if (!vozes.length) return null;
+    const nome = v => (v.name || '').toLowerCase();
+    const ptBR = vozes.filter(v => /^pt[-_]BR/i.test(v.lang));
+    const lista = ptBR.length ? ptBR : vozes;
+    const semMasculinas = lista.filter(
+        v => !VOZES_GAIA_MASCULINAS.some(n => nome(v).includes(n))
+    );
+    const femininas = semMasculinas.filter(
+        v => VOZES_GAIA_FEMININAS.some(n => nome(v).includes(n))
+    );
+    return femininas[0] || semMasculinas[0] || lista[0] || null;
+}
+let gaiaVoice = null;
+function carregarVozes() {
+    const voices = window.speechSynthesis.getVoices();
+    gaiaVoice = escolherVozGaia();
+}
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = carregarVozes;
+}
+function playGaiaVoice(text, targetWaves = 'waves') {
+    window.speechSynthesis.cancel();
+    if (!text) return;
+    
+    let spokenText = text
+        .replace(/k\(1 - C_oce\)/g, "k vezes um, menos, C oceano")
+        .replace(/CO_2/g, "C O 2")
+        .replace(/CO₂/g, "C O 2")
+        .replace(/C_atm/g, "C atmosfera")
+        .replace(/C_oce/g, "C oceano")
+        .replace(/F_co2/g, "F C O 2")
+        .replace(/\(1 - C_oce\)/g, "um menos C oceano");
+        
+    const utterance = new SpeechSynthesisUtterance(spokenText);
+    if (gaiaVoice) utterance.voice = gaiaVoice;
+    utterance.lang = 'pt-BR';
+    utterance.pitch = 0.95;
+    utterance.rate = 1.0;
+    
+    const waveEl = document.getElementById(targetWaves);
+    if (waveEl) waveEl.style.display = 'flex';
+    
+    utterance.onend = () => { if (waveEl) waveEl.style.display = 'none'; };
+    window.speechSynthesis.speak(utterance);
+}
+
+// ---------- FLUXO DE DIÁLOGOS DE VOO ----------
+const dialogues = [
+    "Agora que você reduziu as emissões de CO_2 vamos analisar o que podemos fazer para diminuir o gás que já se encontra na atmosfera.",
+    "Segundo o pesquisador Carlos Nobre, em entrevista à Universidade do ABC em 2017, o gás carbônico permanece na atmosfera em média por 150 anos, sendo que 15% desse gás pode permanecer por mais de mil anos.",
+    "Não dispomos de todo este tempo! Precisamos reduzir o aquecimento urgentemente!",
+    "Teremos que adotar medidas para remover este gás da atmosfera."
+];
+
+let currentStep = 0;
+const textElement = document.getElementById('dialogue-text');
+const nextBtn = document.getElementById('next-btn');
+const panel = document.getElementById('hologram-panel');
+
+function typeWriter(text, i, targetEl, waveId, cb) {
+    if (i === 0) {
+        targetEl.innerHTML = "";
+        playGaiaVoice(text, waveId);
+    }
+    if (i < text.length) {
+        if (text.charAt(i) === '_' && i+1 < text.length && text.charAt(i+1) === '2') {
+            targetEl.innerHTML += "<sub>2</sub>";
+            i++;
+        } else {
+            targetEl.innerHTML += text.charAt(i);
+        }
+        if (i % 3 === 0) playTypingBeep();
+        setTimeout(() => typeWriter(text, i + 1, targetEl, waveId, cb), 35);
+    } else {
+        if (cb) cb();
+    }
+}
+
+function runSequence() {
+    nextBtn.style.display = 'none';
+    if(currentStep === 0) {
+        panel.classList.add('active');
+    }
+    typeWriter(dialogues[currentStep], 0, textElement, 'waves', () => {
+        if (currentStep < dialogues.length - 1) {
+            nextBtn.innerText = "Avançar >>";
+            nextBtn.style.display = 'block';
+        } else {
+            nextBtn.innerText = "Abrir Laboratório Climático >>";
+            nextBtn.style.display = 'block';
+            nextBtn.onclick = transitionToLab;
+        }
+    });
+}
+
+// ---------- INICIALIZAÇÃO AUTOMÁTICA ----------
+// Não há botão de abertura: a etapa começa sozinha assim que o arquivo
+// carrega, para que a passagem de um arquivo para o outro pareça contínua.
+(function iniciarEtapa() {
+    const tela = document.getElementById('start-screen');
+    if (tela) tela.style.display = 'none';
+
+    initAudio();
+    playSpaceWind();
+    carregarVozes();
+
+    const unlockVoice = new SpeechSynthesisUtterance("");
+    window.speechSynthesis.speak(unlockVoice);
+
+    // O navegador só libera o áudio depois de uma interação do usuário, e a
+    // troca de arquivo é automática. Se o contexto ficar suspenso, ele é
+    // retomado no primeiro clique ou tecla, sem exibir aviso algum.
+    const liberarAudio = () => {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        window.removeEventListener('pointerdown', liberarAudio);
+        window.removeEventListener('keydown', liberarAudio);
+    };
+    window.addEventListener('pointerdown', liberarAudio);
+    window.addEventListener('keydown', liberarAudio);
+
+    setTimeout(() => {
+        document.getElementById('flight-hud').style.display = 'block';
+        document.getElementById('flight-hud').style.opacity = 1;
+        setTimeout(runSequence, 1000);
+    }, 1000);
+})();
+
+nextBtn.addEventListener('click', () => {
+    playBeep();
+    window.speechSynthesis.cancel();
+    currentStep++;
+    runSequence();
+});
+
+function transitionToLab() {
+    playBeep();
+    window.speechSynthesis.cancel();
+    isFlying = false;
+    
+    const flightHud = document.getElementById('flight-hud');
+    flightHud.style.opacity = 0;
+    panel.style.opacity = 0;
+    
+    setTimeout(() => {
+        flightHud.style.display = 'none';
+        panel.style.display = 'none';
+        initLaboratorioHUD();
+    }, 1500);
+}
+
+// ---------- FLUXO DE DIÁLOGOS NO LABORATORIO ----------
+let currentLabStep = 0;
+
+function initLaboratorioHUD() {
+    const labHud = document.getElementById('lab-hud');
+    labHud.classList.add('active');
+    
+    setTimeout(resizeCanvas, 300);
+    
+    currentLabStep = 0;
+    runLabDialogueSequence();
+}
+
+const labDialogues = [
+    {
+        img: "bomba_fisica.png",
+        text: "Os oceanos e as florestas absorvem CO₂ da atmosfera, mas alguns fatores podem fazer com que passem a emiti-lo.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_fisica.png",
+        text: "Quanto mais quentes os oceanos, menor sua absorção de CO₂. Por isso, regiões de altas latitudes, como o Atlântico Norte, absorvem mais CO₂.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_fisica.png",
+        text: "Há outros fatores que também influenciam o poder de absorção, como por exemplo a salinidade dos oceanos e os ventos em sua superfície.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_organica.png",
+        text: "Os fitoplâncton que vivem nos oceanos absorvem CO_2 dissolvido na água durante a fotossíntese e o transforma em matéria orgânica.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_organica.png",
+        text: "Parte dessa matéria é consumida pelos organismos marinhos e após sua morte seus restos afundam para as camadas mais profundas do oceano.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_organica.png",
+        text: "Assim uma fração desse carbono permanece no oceano profundo por séculos ou milênios, reduzindo temporariamente o CO₂ na atmosfera.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_organica.png",
+        text: "Os oceanos precisam do CO_2, porém em excesso eles alteram o pH da água e prejudicam a vida marinha.",
+        btn: "Continuar >>"
+    },
+    {
+        img: "bomba_organica.png",
+        text: "Para compreender a absorção de CO₂ pelos oceanos, utilizaremos um modelo matemático simplificado do fluxo do gás entre a atmosfera e o oceano.",
+        btn: "Continuar >>"
+    },  
+    {
+        showSimulator: true,
+        text: "O gráfico acima a direita representa a função do fluxo ou da taxa de transferência de CO_2 da atmosfera para o oceano.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "A função depende da concentração inicial do gás no oceano representada pela variavel C_oce.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "O parâmetro k é aquele que engloba as variáveis que influenciam esta transferência, como a temperatura, a salinidade e os ventos na superfície.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "Consideraremos K sempre maior que zero e quanto maior o valor de k maior será o fluxo.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "Nesse momento o parâmetro k está fixo em 0.4 para que você observe o que acontece variando a concentração inicial de CO_2 no oceano.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "Mova o controle da concentração de CO_2 nos oceanos e observe o que acontece.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "De acordo com esta função:  F(C_oce) = k (1 - C_oce), o oceano possui um limite de absorção de CO_2.",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "Você percebeu que se o valor da concentração (C_oce) for maior que 1 o oceano no simulador fica vermelho?",
+        btn: "Continuar >>"
+    },
+    {
+        showSimulator: true,
+        text: "Agora responda ao desafio de absorção e modelagem.",
+        btn: "Responder Desafio >>"
+    }
+];
+
+function runLabDialogueSequence() {
+    const labTextEl = document.getElementById('lab-dialogue-text');
+    const challengeBtn = document.getElementById('challenge-trigger-btn');
+    const imgEl = document.getElementById('c3s-graph-img');
+    const labHudEl = document.getElementById('lab-hud');
+    
+    challengeBtn.style.display = 'none';
+    const stepData = labDialogues[currentLabStep];
+    
+    if (stepData.showSimulator) {
+        labHudEl.classList.add('simulator-mode');
+        
+        imgEl.style.display = 'none';
+        document.getElementById('wb-title').style.display = 'none';
+        document.getElementById('wb-wrapper').style.display = 'none';
+        document.getElementById('wb-controls').style.display = 'none';
+
+        document.getElementById('simulator-hologram').style.display = 'flex';
+        document.getElementById('simulator-graph').style.display = 'flex';
+        
+        if (!window.simulatorInitialized) {
+            initSimulator();
+            window.simulatorInitialized = true;
+        } else {
+            setTimeout(() => {
+                adjustCanvasResolution(document.getElementById('canvas-oceano'));
+                adjustCanvasResolution(document.getElementById('canvas-grafico'));
+                drawGraficos();
+            }, 50);
+        }
+
+        // LÓGICA DE CONTROLE DE SLIDERS APÓS O DESAFIO
+        if (stepData.kMode) {
+            simState.c = 0.5;
+            const sliderC = document.getElementById('slider-c');
+            if (sliderC) {
+                sliderC.value = 0.5;
+                sliderC.disabled = true;
+                document.getElementById('val-c').textContent = "0.50 (FIXO)";
+            }
+            const sliderK = document.getElementById('slider-k');
+            if (sliderK) {
+                sliderK.disabled = false;
+            }
+            if (window.simulatorInitialized) {
+                drawGraficos();
+            }
+        }
+
+    } else {
+        labHudEl.classList.remove('simulator-mode');
+        
+        imgEl.style.display = 'block';
+        document.getElementById('wb-title').style.display = 'block';
+        document.getElementById('wb-wrapper').style.display = 'block';
+        document.getElementById('wb-controls').style.display = 'flex';
+
+        document.getElementById('simulator-hologram').style.display = 'none';
+        document.getElementById('simulator-graph').style.display = 'none';
+
+        if (imgEl.getAttribute('src') !== stepData.img) {
+            imgEl.style.opacity = 0;
+            setTimeout(() => {
+                imgEl.src = stepData.img;
+                imgEl.style.opacity = 1;
+            }, 300);
+        }
+    }
+    
+    typeWriter(stepData.text, 0, labTextEl, 'lab-waves', () => {
+        challengeBtn.innerText = stepData.btn;
+        challengeBtn.style.display = 'block';
+        challengeBtn.onclick = () => {
+            playBeep();
+            window.speechSynthesis.cancel();
+            
+            if (stepData.isChallenge2) {
+                showQuizModel2();
+            } else if (currentLabStep === labDialogues.length - 1) {
+                showQuizModel();
+            } else {
+                currentLabStep++;
+                runLabDialogueSequence();
+            }
+        };
+    });
+}
+
+// ---------- EXIBIÇÃO DO DESAFIO 1 ----------
+function showQuizModel() {
+    document.getElementById('lab-hud').classList.remove('active');
+    const quizModal = document.getElementById('quiz-modal');
+    quizModal.classList.add('active');
+    
+    document.getElementById('quiz-title').innerHTML = "DESAFIO 1";
+    document.getElementById('quiz-question-text').innerHTML = "O que acontece com o fluxo de transferência entre atmosfera e oceano após os oceanos atingirem a concentração maior que um (C_oce > 1) ?";
+    
+    const optionsContainer = document.getElementById('quiz-options-container');
+    optionsContainer.innerHTML = '';
+    
+    const options = [
+        "Os oceanos saturam, continuam a absorver o CO_2 mas em menor quantidade.",
+        "Os oceanos saturam, deixam de absorver o CO_2 e passam a emiti-lo.",
+        "A atmosfera satura e passa a emitir CO_2 para os oceanos.",
+        "Os oceanos saturam e passam a absorver mais CO_2."
+    ];
+    
+    options.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = opt;
+        btn.onclick = () => {
+            const correctIndex = 1; 
+            
+            if (index === correctIndex) {
+                playBeep();
+                btn.classList.add('correct');
+                
+                setTimeout(() => {
+                    document.getElementById('quiz-modal').classList.remove('active');
+                    document.getElementById('lab-hud').classList.add('active');
+                    
+                    labDialogues.push(
+                        { showSimulator: true, text: "Correto. Quando a concentração de CO_2 chega ao valor 1 o sistema atinge o ponto de equilíbrio.", btn: "Continuar >>" },
+                        { showSimulator: true, text: "No ponto de equilíbrio não há fluxo, ou seja, o oceano não absorve nem emite CO_2 para a atmosfera.", btn: "Continuar >>" },
+                        { showSimulator: true, text: "Se o valor inicial da concentração é inferior a 1, o oceano ABSORVE o gás até atingir seu ponto de equilíbrio.", btn: "Continuar >>" },  
+                        { showSimulator: true, text: "Se o valor inicial da concentração é superior a 1, o oceano EMITE o gás até atingir seu ponto de equilíbrio.", btn: "Continuar >>" },                         
+                        { showSimulator: true, text: "Agora vamos fixar a concentração inicial de CO_2 e você poderá alterar o parâmetro k e verificar como o fluxo se comporta.", btn: "Continuar >>" },
+                        { showSimulator: true, text: "Mova o controle do parâmetro k e observe o que acontece com o fluxo.", btn: "Continuar >>", kMode: true },
+                        { showSimulator: true, text: "Agora responda ao próximo desafio", btn: "Responder Desafio >>", isChallenge2: true }
+                    );
+                    
+                    currentLabStep++;
+                    runLabDialogueSequence();
+                }, 1000);
+                
+            } else {
+                playTypingBeep();
+                btn.classList.add('wrong');
+                
+                if (index === 0) {
+                    playGaiaVoice("Observe que após a reta cruzar o eixo da abcissa no valor 1 o fluxo torna-se negativo indicando uma inversão, então se antes ele absorvia o gás, depois desse valor passa a emiti-lo e não mais absorve.", null);
+                } else if (index === 2) { 
+                    playGaiaVoice("A função exibe o comportamento do gás nos oceanos, assim ao ultrapassar o valor 1 de concentração de gás nos oceanos, estes passam a emitir, o que fará com que a atmosfera absorva o gás.", null);
+                } else if (index === 3) {
+                    playGaiaVoice("Observe que após a reta cruzar o eixo da abcissa no valor 1 o fluxo torna-se negativo indicando uma inversão, então se antes ele absorvia o gás, depois desse valor passa a emiti-lo e não mais absorve.", null);
+                }
+            }
+        };
+        optionsContainer.appendChild(btn);
+    });
+}
+
+// ---------- EXIBIÇÃO DO DESAFIO 2 ----------
+function showQuizModel2() {
+    document.getElementById('lab-hud').classList.remove('active');
+    const quizModal = document.getElementById('quiz-modal');
+    quizModal.classList.add('active');
+    
+    document.getElementById('quiz-title').innerHTML = "DESAFIO 2";
+    document.getElementById('quiz-question-text').innerHTML = "Se a concentração de CO_2 no oceano esta fixa em 0.5, o que acontece com o fluxo ou taxa de transferência entre atmosfera e oceano em relação ao parâmetro K:";
+    
+    const optionsContainer = document.getElementById('quiz-options-container');
+    optionsContainer.innerHTML = '';
+    
+    const options = [
+        "Se aumentamos ou diminuímos valor de k, o fluxo não se altera e permanece constante;",
+        "Se aumentamos o valor de k, o fluxo diminui até zerar;",
+        "Alterando o valor de k, o valor do fluxo também se altera até se estabilizar em 1;",
+        "Se diminuímos o valor de k até zero, o fluxo diminui até zerar;"
+    ];
+    
+    options.forEach((opt, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = opt;
+        btn.onclick = () => {
+            const correctIndex = 3; 
+            
+            if (index === correctIndex) {
+                playBeep();
+                btn.classList.add('correct');
+                playGaiaVoice("Excelente interpretação! Se aumentamos o valor de k, o valor do fluxo também aumenta e se diminuímos, reduzimos linearmente o fluxo até zerar.", null);
+                
+                //setTimeout(() => {
+                //    document.getElementById('quiz-modal').classList.remove('active');
+                //    document.getElementById('lab-hud').classList.add('active');
+                // Fim das validações ou sequência natural.
+                //}, 14000); 
+                setTimeout(() => {
+                    window.location.replace('desafios_oceano.html');
+                }, 14000);
+                
+            } else {
+                playTypingBeep();
+                btn.classList.add('wrong');
+                playGaiaVoice("Verifique novamente como os valores do fluxo que são apresentados no eixo das ordenadas do gráfico, se alteram à medida que você modifica o valor de k. Altere os valores de k mais uma vez e observe atentamente como essas mudanças afetam o fluxo.", null);
+            }
+        };
+        optionsContainer.appendChild(btn);
+    });
+}
+
+
+document.getElementById('btn-voltar-desafio').addEventListener('click', () => {
+    playBeep();
+    const quizModal = document.getElementById('quiz-modal');
+    quizModal.classList.remove('active');
+    document.getElementById('lab-hud').classList.add('active');
+});
+
+// ---------- LÓGICA DA LOUSA DE CÁLCULOS (TEXTO + DESENHO) ----------
+const wbCanvas = document.getElementById('whiteboard-canvas');
+const wbCtx = wbCanvas.getContext('2d');
+const wbTextarea = document.getElementById('whiteboard-textarea');
+
+const modeTextBtn = document.getElementById('mode-text-btn');
+const modeDrawBtn = document.getElementById('mode-draw-btn');
+const clearBtn = document.getElementById('clear-btn');
+
+let isDrawMode = false;
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+
+function resizeCanvas() {
+    if (!wbCanvas) return;
+    wbCanvas.width = wbCanvas.offsetWidth;
+    wbCanvas.height = wbCanvas.offsetHeight;
+    wbCtx.strokeStyle = '#00e5ff';
+    wbCtx.lineWidth = 2.5;
+    wbCtx.lineCap = 'round';
+    wbCtx.lineJoin = 'round';
+}
+
+function getPointerPos(e) {
+    const rect = wbCanvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+wbCanvas.addEventListener('pointerdown', (e) => {
+    if (!isDrawMode) return;
+    isDrawing = true;
+    const pos = getPointerPos(e);
+    lastX = pos.x;
+    lastY = pos.y;
+});
+
+wbCanvas.addEventListener('pointermove', (e) => {
+    if (!isDrawing || !isDrawMode) return;
+    const pos = getPointerPos(e);
+    wbCtx.beginPath();
+    wbCtx.moveTo(lastX, lastY);
+    wbCtx.lineTo(pos.x, pos.y);
+    wbCtx.stroke();
+    lastX = pos.x;
+    lastY = pos.y;
+});
+
+wbCanvas.addEventListener('pointerup', () => isDrawing = false);
+wbCanvas.addEventListener('pointerout', () => isDrawing = false);
+
+modeTextBtn.addEventListener('click', () => {
+    playBeep();
+    isDrawMode = false;
+    wbCanvas.style.pointerEvents = 'none';
+    wbTextarea.style.pointerEvents = 'auto';
+    modeTextBtn.style.background = 'rgba(0, 229, 255, 0.4)';
+    modeTextBtn.style.color = '#fff';
+    modeDrawBtn.style.background = 'rgba(0, 229, 255, 0.12)';
+    modeDrawBtn.style.color = '#00e5ff';
+});
+
+modeDrawBtn.addEventListener('click', () => {
+    playBeep();
+    isDrawMode = true;
+    wbCanvas.style.pointerEvents = 'auto';
+    wbTextarea.style.pointerEvents = 'none';
+    modeDrawBtn.style.background = 'rgba(0, 229, 255, 0.4)';
+    modeDrawBtn.style.color = '#fff';
+    modeTextBtn.style.background = 'rgba(0, 229, 255, 0.12)';
+    modeTextBtn.style.color = '#00e5ff';
+});
+
+clearBtn.addEventListener('click', () => {
+    playBeep();
+    wbTextarea.value = '';
+    wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
+});
+
+// ---------- LÓGICA DO SIMULADOR INTEGRADA ----------
+
+let simState = {
+    c: 0.15,
+    k: 0.40
+};
+let oceanCtx = null;
+let graphCtx = null;
+let waveOffset = 0;
+let bubbles = [];
+
+function initBubbles() {
+    bubbles = [];
+    for (let i = 0; i < 25; i++) {
+        bubbles.push({
+            x: Math.random() * 500,
+            y: 120 + Math.random() * 200,
+            size: 1 + Math.random() * 4,
+            speed: 0.5 + Math.random() * 1.5
+        });
+    }
+}
+
+function adjustCanvasResolution(canvas) {
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if(rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+}
+
+function renderOceano() {
+    const canvas = document.getElementById('canvas-oceano');
+    if (!oceanCtx || !canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    
+    if (w > 0 && h > 0) {
+        oceanCtx.clearRect(0, 0, w, h);
+
+        let isEmitting = simState.c > 1.0;
+        let waterGradient = oceanCtx.createLinearGradient(0, 0, 0, h);
+        
+        if (isEmitting) {
+            waterGradient.addColorStop(0, 'rgba(239, 68, 68, 0.15)');
+            waterGradient.addColorStop(0.3, 'rgba(185, 28, 28, 0.25)');
+            waterGradient.addColorStop(1, 'rgba(127, 29, 29, 0.85)');
+        } else {
+            waterGradient.addColorStop(0, 'rgba(2, 6, 23, 0.95)');
+            waterGradient.addColorStop(0.3, 'rgba(14, 165, 233, 0.25)');
+            waterGradient.addColorStop(1, 'rgba(4, 135, 183, 0.85)');
+        }
+
+        oceanCtx.fillStyle = waterGradient;
+        oceanCtx.fillRect(0, 0, w, h);
+
+        oceanCtx.fillStyle = isEmitting ? 'rgba(239, 68, 68, 0.2)' : 'rgba(14, 165, 233, 0.2)';
+        oceanCtx.beginPath();
+        oceanCtx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 10) {
+            let y = 120 + Math.sin(x * 0.02 + waveOffset) * 8 + Math.cos(x * 0.01 + waveOffset * 0.5) * 4;
+            oceanCtx.lineTo(x, y);
+        }
+        oceanCtx.lineTo(w, h);
+        oceanCtx.closePath();
+        oceanCtx.fill();
+
+        waveOffset += 0.025;
+
+        drawCorals(oceanCtx, w, h);
+
+        oceanCtx.fillStyle = isEmitting ? 'rgba(254, 202, 202, 0.5)' : 'rgba(224, 242, 254, 0.4)';
+        bubbles.forEach(function(bubble) {
+            oceanCtx.beginPath();
+            oceanCtx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+            oceanCtx.fill();
+
+            if (isEmitting) {
+                bubble.y -= bubble.speed;
+                if (bubble.y < 110) {
+                    bubble.y = h + Math.random() * 20;
+                    bubble.x = Math.random() * w;
+                }
+            } else {
+                bubble.y += bubble.speed;
+                if (bubble.y > h) {
+                    bubble.y = 110 - Math.random() * 20;
+                    bubble.x = Math.random() * w;
+                }
+            }
+        });
+
+        drawSciFiHUD(oceanCtx, w, h);
+    }
+    requestAnimationFrame(renderOceano);
+}
+
+function drawCorals(ctx, w, h) {
+    const bottomY = h - 5;
+    ctx.strokeStyle = simState.c > 1.0 ? 'rgba(180, 83, 9, 0.7)' : 'rgba(34, 197, 94, 0.7)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (let i = 20; i < w; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, bottomY);
+        let sway = Math.sin(waveOffset + i) * 12;
+        ctx.quadraticCurveTo(i - 5 + sway * 0.5, bottomY - 30, i + sway, bottomY - 70);
+        ctx.stroke();
+    }
+}
+
+function drawSciFiHUD(ctx, w, h) {
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.lineWidth = 1;
+    const padding = 15;
+    const len = 15;
+
+    ctx.beginPath();
+    ctx.moveTo(padding, padding + len);
+    ctx.lineTo(padding, padding);
+    ctx.lineTo(padding + len, padding);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(w - padding, padding + len);
+    ctx.lineTo(w - padding, padding);
+    ctx.lineTo(w - padding - len, padding);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(w - 30, 40, 8, 120);
+
+    let isEmitting = simState.c > 1.0;
+    ctx.fillStyle = isEmitting ? '#ef4444' : '#0ea5e9';
+    let fillPercent = Math.min(simState.c / 1.5, 1.0);
+    let barHeight = 120 * fillPercent;
+    ctx.fillRect(w - 30, 40 + (120 - barHeight), 8, barHeight);
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('(c)', w - 42, 32);
+    ctx.fillText((simState.c).toFixed(2), w - 38, 175);
+
+    if (isEmitting) {
+        ctx.fillStyle = '#ef4444';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText('⚠ SOBRESATURAÇÃO: EMISSÃO DE CO₂', 15, h - 15);
+    }
+}
+
+function drawGraficos() {
+    const canvas = document.getElementById('canvas-grafico');
+    if (!graphCtx || !canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w === 0 || h === 0) return;
+
+    graphCtx.clearRect(0, 0, w, h);
+
+    const padLeft = 45;
+    const padBottom = 30;
+    const graphW = w - padLeft - 20;
+    const graphH = h - padBottom - 25;
+
+    // Escala fixa do Eixo Y conforme solicitado
+    const F_max = 1.0;
+    const F_min = -0.1;
+    const F_span = 1.1; 
+
+    const yZero = 25 + graphH * (F_max / F_span);
+
+    graphCtx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+    graphCtx.lineWidth = 1.5;
+    graphCtx.beginPath();
+    graphCtx.moveTo(padLeft, yZero);
+    graphCtx.lineTo(w - 20, yZero);
+    graphCtx.stroke();
+
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = 0; i <= 4; i++) {
+        let y = 25 + (graphH / 4) * i;
+        if (Math.abs(y - yZero) > 5) {
+            graphCtx.beginPath();
+            graphCtx.moveTo(padLeft, y);
+            graphCtx.lineTo(w - 20, y);
+            graphCtx.stroke();
+        }
+    }
+
+    const xSat = padLeft + graphW * (1.0 / 1.5);
+    graphCtx.strokeStyle = 'rgba(239, 68, 68, 0.35)';
+    graphCtx.setLineDash([3, 3]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(xSat, 25);
+    graphCtx.lineTo(xSat, h - padBottom);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+
+    graphCtx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    graphCtx.lineWidth = 1.5;
+    graphCtx.beginPath();
+    graphCtx.moveTo(padLeft, 25);
+    graphCtx.lineTo(padLeft, h - padBottom);
+    graphCtx.stroke();
+
+    graphCtx.fillStyle = '#94a3b8';
+    graphCtx.font = '11px sans-serif';
+
+    graphCtx.fillText('F(C_oce) Fluxo', 5, 15);
+
+    graphCtx.fillText('+' + F_max.toFixed(1), 12, 29);
+    graphCtx.fillText('0.0', 20, yZero + 4);
+    graphCtx.fillText(F_min.toFixed(1), 12, h - padBottom + 4);
+
+    graphCtx.fillText('0.0', padLeft - 6, yZero + 16);
+    graphCtx.fillText('0.5', padLeft + graphW * (0.5 / 1.5) - 8, yZero + 16);
+
+    graphCtx.fillStyle = '#ef4444';
+    graphCtx.fillText('1', xSat - 4, yZero + 16);
+
+    graphCtx.fillStyle = '#94a3b8';
+    graphCtx.font = 'italic 11px sans-serif';
+    graphCtx.fillText('c', w - 22, yZero + 16);
+    graphCtx.font = '11px sans-serif';
+
+    graphCtx.fillText('C_oce', w - 45, yZero + 30);
+
+    graphCtx.fillStyle = 'rgba(0, 255, 255, 0.8)';
+    graphCtx.font = '10px sans-serif';
+    graphCtx.fillText('Absorção (F > 0)', padLeft + 40, 38);
+
+    graphCtx.fillStyle = 'rgba(255, 40, 40, 0.9)';
+    graphCtx.fillText('Emissão (F < 0)', padLeft + 10, yZero + 44);
+
+    graphCtx.strokeStyle = '#0ea5e9';
+    graphCtx.lineWidth = 2.5;
+    graphCtx.beginPath();
+
+    let startY = 25 + graphH * ((F_max - simState.k * (1 - 0.0)) / F_span);
+    let endY = 25 + graphH * ((F_max - simState.k * (1 - 1.5)) / F_span);
+
+    graphCtx.moveTo(padLeft, startY);
+    graphCtx.lineTo(padLeft + graphW, endY);
+    graphCtx.stroke();
+
+    let currentF = simState.k * (1 - simState.c);
+    let currentX = padLeft + graphW * (simState.c / 1.5);
+    let currentY = 25 + graphH * ((F_max - currentF) / F_span);
+
+    graphCtx.shadowColor = currentF < 0 ? '#ef4444' : '#38bdf8';
+    graphCtx.shadowBlur = 12;
+    graphCtx.fillStyle = currentF < 0 ? '#ef4444' : '#ffffff';
+    graphCtx.beginPath();
+    graphCtx.arc(currentX, currentY, 6, 0, Math.PI * 2);
+    graphCtx.fill();
+    graphCtx.shadowBlur = 0;
+
+    graphCtx.strokeStyle = currentF < 0 ? 'rgba(239, 68, 68, 0.5)' : 'rgba(56, 189, 248, 0.4)';
+    graphCtx.setLineDash([3, 3]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(currentX, yZero);
+    graphCtx.lineTo(currentX, currentY);
+    graphCtx.lineTo(padLeft, currentY);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+}
+
+function gerarControles() {
+    const container = document.getElementById('container-controles');
+    let html = '<div class="slider-group">' +
+        '<div class="slider-header">' +
+            '<span>Concentração de CO₂ nos oceanos (eixo x do gráfico):</span>' +
+            '<span class="highlight" id="val-c">' + simState.c.toFixed(2) + '</span>' +
+        '</div>' +
+        '<input type="range" id="slider-c" min="0.0" max="1.5" step="0.05" value="' + simState.c + '">' +
+    '</div>' +
+    '<div class="slider-group" style="margin-top: 10px;">' +
+        '<div class="slider-header">' +
+            '<span>Parâmetro de transferência (k):</span>' +
+            '<span class="highlight" id="val-k">' + simState.k.toFixed(2) + '</span>' +
+        '</div>' +
+        '<input type="range" id="slider-k" min="0.0" max="1.0" step="0.05" value="' + simState.k + '" disabled>' +
+    '</div>';
+
+    container.innerHTML = html;
+
+    document.getElementById('slider-c').addEventListener('input', function(e) {
+        simState.c = parseFloat(e.target.value);
+        document.getElementById('val-c').textContent = simState.c.toFixed(2);
+        drawGraficos();
+    });
+
+    document.getElementById('slider-k').addEventListener('input', function(e) {
+        simState.k = parseFloat(e.target.value);
+        document.getElementById('val-k').textContent = simState.k.toFixed(2);
+        drawGraficos();
+    });
+}
+
+function initSimulator() {
+    const canvasOceano = document.getElementById('canvas-oceano');
+    const canvasGrafico = document.getElementById('canvas-grafico');
+
+    oceanCtx = canvasOceano.getContext('2d');
+    graphCtx = canvasGrafico.getContext('2d');
+
+    adjustCanvasResolution(canvasOceano);
+    adjustCanvasResolution(canvasGrafico);
+
+    initBubbles();
+    gerarControles();
+
+    window.addEventListener('resize', function() {
+        if(document.getElementById('simulator-hologram').style.display !== 'none') {
+            adjustCanvasResolution(canvasOceano);
+            adjustCanvasResolution(canvasGrafico);
+            drawGraficos();
+        }
+    });
+
+    renderOceano();
+    drawGraficos();
+}
+
+</script>
+</body>
+</html>
